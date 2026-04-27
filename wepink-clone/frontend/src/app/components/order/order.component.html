@@ -1,0 +1,38 @@
+<div class="container">
+  <h1>Clone Wepink - Gestão de Pedidos</h1>
+
+  <div class="actions">
+    <button (click)="createSampleOrder()" [disabled]="loading">Criar Pedido de Teste</button>
+  </div>
+
+  <hr>
+
+  <div class="search">
+    <input type="text" [(ngModel)]="orderIdInput" placeholder="Digite o ID do Pedido">
+    <button (click)="lookupOrder()" [disabled]="loading">Consultar</button>
+  </div>
+
+  <div *ngIf="errorMessage" class="error">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="currentOrder" class="order-details">
+    <h3>Pedido: {{ currentOrder.id }}</h3>
+    <p><strong>Status:</strong> <span [class]="currentOrder.status">{{ currentOrder.status }}</span></p>
+    <p><strong>Total:</strong> R$ {{ currentOrder.total }}</p>
+    
+    <h4>Itens:</h4>
+    <ul>
+      <li *ngFor="let item of currentOrder.items">
+        {{ item.product_id }} - {{ item.quantity }}x R$ {{ item.price }}
+      </li>
+    </ul>
+
+    <button *ngIf="currentOrder.status === 'PENDING'" 
+            (click)="pay()" 
+            class="pay-btn"
+            [disabled]="loading">
+      Efetuar Pagamento
+    </button>
+  </div>
+</div>

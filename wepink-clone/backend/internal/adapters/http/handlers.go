@@ -1,0 +1,109 @@
+package http
+
+import (
+	"database/sql"
+	"encoding/json"
+	"net/http"
+
+	"github.com/google/uuid"
+	"github.com/wepink-clone/backend/internal/domain/entity"
+	"github.com/wepink-clone/backend/internal/ports"
+	"github.com/wepink-clone/backend/internal/usecase"
+)
+
+type OrderHandler struct {
+	orderUseCase   *usecase.OrderUseCase
+	paymentUseCase *usecase.PaymentUseCase
+	db             *sql.DB
+	rabbitConn     ports.EventPublisher // We can use the publisher to check if rabbit is OK
+}
+
+func NewOrderHandler(
+	orderUC *usecase.OrderUseCase, 
+	paymentUC *usecase.PaymentUseCase,
+	db *sql.DB,
+	rabbit ports.EventPublisher,
+) *OrderHandler {
+	return &OrderHandler{
+		orderUseCase:   orderUC,
+		paymentUseCase: paymentUC,
+		db:             db,
+		rabbitConn:     rabbit,
+	}
+}
+
+type CreateOrderRequest struct {
+	Items []entity.OrderItem `json:"items"`
+}
+
+func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	var req CreateOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.Items)
+	if err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusCreated, order)
+}
+
+func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		RespondWithError(w, r, http.StatusBadRequest, "Missing order id")
+		return
+	}
+
+	order, err := h.orderUseCase.GetOrder(r.Context(), id)
+	if err != nil {
+		RespondWithError(w, r, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, order)
+}
+
+func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
+	orderID := r.PathValue("orderId")
+	if orderID == "" {
+		RespondWithError(w, r, http.StatusBadRequest, "Missing order id")
+		return
+	}
+
+	input := usecase.ProcessPaymentInput{
+		PaymentID:      uuid.New().String(),
+		OrderID:        orderID,
+		IdempotencyKey: uuid.New().String(),
+	}
+
+	payment, err := h.paymentUseCase.ProcessPayment(r.Context(), input)
+	if err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, payment)
+}
+
+func (h *OrderHandler) Live(w http.ResponseWriter, r *http.Request) {
+	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "up"})
+}
+
+func (h *OrderHandler) Ready(w http.ResponseWriter, r *http.Request) {
+	if err := h.db.PingContext(r.Context()); err != nil {
+		RespondWithError(w, r, http.StatusServiceUnavailable, "MySQL not ready")
+		return
+	}
+
+	if h.rabbitConn == nil {
+		RespondWithError(w, r, http.StatusServiceUnavailable, "RabbitMQ not ready")
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "ready"})
+}

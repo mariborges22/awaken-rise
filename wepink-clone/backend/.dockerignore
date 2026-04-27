@@ -1,0 +1,9 @@
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+tests/
+tests-output/
+tmp/
+.env
+*.log

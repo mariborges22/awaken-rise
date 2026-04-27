@@ -1,0 +1,24 @@
+# Binários e arquivos do Go
+backend/main
+backend/backend
+*.exe
+*.test
+*.prof
+
+# Dependências
+node_modules/
+vendor/
+
+# IDEs
+.vscode/
+.idea/
+
+# Docker e OS
+.DS_Store
+*.log
+.env
+infra/mysql/data/
+
+# Angular Build
+dist/
+.angular/

@@ -1,0 +1,39 @@
+package payment
+
+import (
+	"context"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/wepink-clone/backend/internal/ports"
+)
+
+type FakePaymentGateway struct{}
+
+func NewFakePaymentGateway() *FakePaymentGateway {
+	return &FakePaymentGateway{}
+}
+
+func (g *FakePaymentGateway) Process(ctx context.Context, amount float64) (*ports.PaymentGatewayResponse, error) {
+	// Simulate external network latency
+	select {
+	case <-time.After(500 * time.Millisecond):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	success := true
+	errorMessage := ""
+	
+	// Simulate some failures based on amount for testing
+	if int(amount*100)%10 == 9 {
+		success = false
+		errorMessage = "insufficient funds"
+	}
+
+	return &ports.PaymentGatewayResponse{
+		Success:       success,
+		TransactionID: uuid.New().String(),
+		ErrorMessage:  errorMessage,
+	}, nil
+}
