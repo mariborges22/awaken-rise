@@ -1,0 +1,80 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ master, staging ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [ master, staging ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: backend/go.sum
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Run Tests
+        run: cd backend && go test -v ./...
+
+  build-and-scan:
+    name: Docker Build & Security Scan
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build local image
+        run: |
+          docker build -t wepink-backend:local ./backend
+          
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'wepink-backend:local'
+          format: 'table'
+          exit-code: '1' # Falha se encontrar algo crítico
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  smoke-test:
+    name: Smoke Test
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Start services
+        run: |
+          docker-compose -f infra/docker/docker-compose.yml up -d mysql redis rabbitmq backend
+          
+      - name: Wait for Backend Ready
+        run: |
+          MAX_RETRIES=15
+          COUNT=0
+          until $(curl --output /dev/null --silent --head --fail http://localhost:8080/health/ready); do
+            if [ $COUNT -eq $MAX_RETRIES ]; then
+              echo "Backend failed to become ready"
+              docker-compose -f infra/docker/docker-compose.yml logs backend
+              exit 1
+            fi
+            echo "Waiting for backend... ($COUNT/$MAX_RETRIES)"
+            sleep 5
+            COUNT=$((COUNT+1))
+          done
+          echo "Backend is READY!"
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f infra/docker/docker-compose.yml down

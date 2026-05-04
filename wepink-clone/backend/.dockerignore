@@ -1,9 +1,12 @@
 .git
 .gitignore
+.github
 Dockerfile
 docker-compose.yml
-tests/
-tests-output/
-tmp/
-.env
+bin/
+vendor/
 *.log
+tmp/
+.vscode/
+.idea/
+coverage.out

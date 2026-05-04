@@ -1,37 +1,38 @@
 # Stage 1: Build
 FROM golang:1.22-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git
+# Instalar dependências necessárias para o build
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
+
+# Cache de dependências
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Copiar código e compilar
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
 
-# Stage 2: Security Scan
-FROM aquasec/trivy:latest AS scanner
-COPY --from=builder /app/main /main
-RUN trivy rootfs --exit-code 0 --severity HIGH,CRITICAL /main
-
-# Stage 3: Final Production Image
+# Stage 2: Runtime
 FROM alpine:3.19
-RUN apk add --no-cache ca-certificates
 
-# Create a non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Instalar certificados (necessário para chamadas HTTPS de APIs externas)
+RUN apk --no-cache add ca-certificates
 
-WORKDIR /home/appuser/
-
-# Copy binary from builder
-COPY --from=builder /app/main .
-
-# Change ownership to non-root user
-RUN chown appuser:appgroup main && chmod +x main
-
-# Switch to non-root user
+# Criar usuário não-root por segurança
+RUN adduser -D -g '' appuser
 USER appuser
 
+WORKDIR /app
+
+# Copiar binário do estágio de build
+COPY --from=builder /app/main .
+
 EXPOSE 8080
+
+# Metadata
+LABEL maintainer="Wepink Clone Team"
+LABEL version="1.0.0"
+
 CMD ["./main"]

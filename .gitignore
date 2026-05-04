@@ -1,0 +1,12 @@
+*/go.mod
+*/go.sum
+*/go.msi
+*/setup.ps1
+*/config/.env.example
+*/dist
+*/node_modules
+*/target
+*/docs/architecture.md
+*/.env
+*/.env.local
+
