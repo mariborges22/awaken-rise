@@ -23,10 +23,35 @@ func main() {
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true})
 	slog.SetDefault(slog.New(handler))
 
-	// 2. Infrastructure Setup
-	db, err := sql.Open("mysql", "user:pass@tcp(localhost:3306)/wepink?parseTime=true")
+	slog.Info("Waiting for infrastructure to stabilize...")
+	time.Sleep(5 * time.Second)
+
+	// 2. Infrastructure Setup (Environment Variables)
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		dbURL = "user:pass@tcp(localhost:3306)/wepink?parseTime=true"
+	}
+
+	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
-		slog.Error("Failed to connect to MySQL", "error", err)
+		slog.Error("Failed to open MySQL connection", "error", err)
+	}
+
+	// Test connection immediately
+	if db != nil {
+		if err := db.Ping(); err != nil {
+			slog.Warn("MySQL not reachable yet", "error", err)
+		}
+	}
+
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "localhost:6379"
+	}
+
+	rabbitURL := os.Getenv("RABBITMQ_URL")
+	if rabbitURL == "" {
+		rabbitURL = "amqp://guest:guest@localhost:5672/"
 	}
 	
 	// MySQL Pool Configuration
@@ -35,7 +60,7 @@ func main() {
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:         "localhost:6379",
+		Addr:         redisURL,
 		PoolSize:     10,
 		MinIdleConns: 5,
 		DialTimeout:  5 * time.Second,
@@ -43,7 +68,6 @@ func main() {
 		WriteTimeout: 3 * time.Second,
 	})
 	
-	rabbitURL := "amqp://guest:guest@localhost:5672/"
 	rabbitAdapter, err := rabbitmq.NewRabbitMQAdapter(rabbitURL)
 	if err != nil {
 		slog.Warn("Failed to connect to RabbitMQ", "error", err)
