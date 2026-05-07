@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main, master, staging ]
 
+env:
+  TF_CLOUD_ORGANIZATION: "awakenrise"
+  TF_WORKSPACE: "wepink-staging"
+
 jobs:
   terraform:
     name: "Terraform & Ansible"
@@ -21,8 +25,6 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: ./infra/terraform/environments/staging
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
 
       - name: Terraform Apply
         id: apply
@@ -31,8 +33,6 @@ jobs:
             -var="do_token=${{ secrets.DIGITALOCEAN_TOKEN }}" \
             -var="ssh_key_fingerprint=${{ secrets.SSH_KEY_FINGERPRINT }}"
         working-directory: ./infra/terraform/environments/staging
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
 
       - name: Get Infrastructure Outputs
         id: infra_outputs
