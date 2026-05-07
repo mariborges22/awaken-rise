@@ -1,0 +1,147 @@
+---
+- name: Provisionamento e Deploy Wepink App
+  hosts: staging
+  become: yes
+  vars:
+    project_root: "/opt/wepink"
+    app_image: "mariborges22/wepink-backend:latest" # Substitua pelo seu usuário do Docker Hub
+
+  tasks:
+    - name: Atualizar cache do apt
+      apt:
+        update_cache: yes
+
+    - name: Instalar dependências básicas
+      apt:
+        name:
+          - curl
+          - git
+          - ufw
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - python3-pip
+        state: present
+
+    - name: Adicionar chave GPG do Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Adicionar repositório Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Instalar Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Garantir que o Docker está rodando
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Configurar Firewall (UFW)
+      ufw:
+        rule: allow
+        name: "{{ item }}"
+      with_items:
+        - OpenSSH
+        - '80/tcp'
+        - '443/tcp'
+        - '8080/tcp' # Porta do App
+
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ project_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Pull da imagem Docker mais recente
+      docker_image:
+        name: "{{ app_image }}"
+        source: pull
+
+    - name: Rodar container do RabbitMQ
+      docker_container:
+        name: rabbitmq
+        image: "rabbitmq:3-management"
+        state: started
+        restart_policy: always
+        published_ports:
+          - "5672:5672"   # AMQP
+          - "15672:15672" # Management UI
+        env:
+          RABBITMQ_DEFAULT_USER: "wepink_user"
+          RABBITMQ_DEFAULT_PASS: "wepink_pass"
+
+    - name: Rodar container do Backend
+      docker_container:
+        name: wepink-backend
+        image: "{{ app_image }}"
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8080:8080"
+        env:
+          APP_ENV: staging
+          DB_HOST: "{{ mysql_host }}"
+          DB_PORT: "{{ mysql_port }}"
+          DB_USER: "{{ mysql_user }}"
+          DB_PASSWORD: "{{ mysql_password }}"
+          REDIS_HOST: "{{ redis_host }}"
+          RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
+          # Adicione outras variáveis de ambiente necessárias aqui
+        networks:
+          - name: bridge
+        links:
+          - rabbitmq
+
+    - name: Criar config básica do Prometheus
+      copy:
+        dest: /tmp/prometheus.yml
+        content: |
+          global:
+            scrape_interval: 5s
+          scrape_configs:
+            - job_name: 'wepink-backend'
+              static_configs:
+                - targets: ['wepink-backend:8080']
+
+    - name: Rodar container do Prometheus
+      docker_container:
+        name: prometheus
+        image: prom/prometheus:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "9090:9090"
+        volumes:
+          - /tmp/prometheus.yml:/etc/prometheus/prometheus.yml
+        links:
+          - wepink-backend
+
+    - name: Rodar container do Grafana
+      docker_container:
+        name: grafana
+        image: grafana/grafana:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "3000:3000"
+        env:
+          GF_SECURITY_ADMIN_PASSWORD: "admin"
+        links:
+          - prometheus

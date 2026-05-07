@@ -27,6 +27,7 @@ type OrderItem struct {
 
 type Order struct {
 	ID        string      `json:"id"`
+	TenantID  string      `json:"tenant_id"`
 	Status    OrderStatus `json:"status"`
 	Items     []OrderItem `json:"items"`
 	Total     float64     `json:"total"`
@@ -34,7 +35,7 @@ type Order struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 }
 
-func NewOrder(id string, items []OrderItem) *Order {
+func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 	var total float64
 	for _, item := range items {
 		total += item.Price * float64(item.Quantity)
@@ -42,6 +43,7 @@ func NewOrder(id string, items []OrderItem) *Order {
 
 	return &Order{
 		ID:        id,
+		TenantID:  tenantID,
 		Status:    OrderPending,
 		Items:     items,
 		Total:     total,

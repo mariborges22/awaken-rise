@@ -10,12 +10,12 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
 	
-	"github.com/wepink-clone/backend/internal/adapters/mysql"
-	"github.com/wepink-clone/backend/internal/adapters/payment"
-	"github.com/wepink-clone/backend/internal/adapters/rabbitmq"
-	redisAdapter "github.com/wepink-clone/backend/internal/adapters/redis"
-	httpAdapter "github.com/wepink-clone/backend/internal/adapters/http"
-	"github.com/wepink-clone/backend/internal/usecase"
+	"github.com/awaken-rise/backend/internal/adapters/mysql"
+	"github.com/awaken-rise/backend/internal/adapters/payment"
+	"github.com/awaken-rise/backend/internal/adapters/rabbitmq"
+	redisAdapter "github.com/awaken-rise/backend/internal/adapters/redis"
+	httpAdapter "github.com/awaken-rise/backend/internal/adapters/http"
+	"github.com/awaken-rise/backend/internal/usecase"
 )
 
 func main() {

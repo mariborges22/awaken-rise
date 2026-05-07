@@ -3,10 +3,11 @@ package entity
 import "time"
 
 type Event struct {
-	ID        string      `json:"event_id"`
-	Type      string      `json:"type"`
-	Timestamp time.Time   `json:"timestamp"`
-	Payload   interface{} `json:"payload"`
+	ID            string      `json:"event_id"`
+	CorrelationID string      `json:"correlation_id"`
+	Type          string      `json:"type"`
+	Timestamp     time.Time   `json:"timestamp"`
+	Payload       interface{} `json:"payload"`
 }
 
 type OrderCreatedPayload struct {
@@ -15,9 +16,10 @@ type OrderCreatedPayload struct {
 }
 
 type PaymentApprovedPayload struct {
-	PaymentID string  `json:"payment_id"`
-	OrderID   string  `json:"order_id"`
-	Amount    float64 `json:"amount"`
+	PaymentID      string  `json:"payment_id"`
+	OrderID        string  `json:"order_id"`
+	Amount         float64 `json:"amount"`
+	IdempotencyKey string  `json:"idempotency_key"`
 }
 
 type PaymentFailedPayload struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/wepink-clone/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/entity"
 )
 
 type OrderRepository struct {

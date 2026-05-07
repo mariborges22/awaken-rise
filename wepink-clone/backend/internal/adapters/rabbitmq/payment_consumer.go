@@ -7,10 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/wepink-clone/backend/internal/domain/entity"
-	"github.com/wepink-clone/backend/internal/pkg/logger"
-	"github.com/wepink-clone/backend/internal/ports"
-	"github.com/wepink-clone/backend/internal/usecase"
+	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/pkg/logger"
+	"github.com/awaken-rise/backend/internal/ports"
+	"github.com/awaken-rise/backend/internal/usecase"
 )
 
 type PaymentConsumer struct {

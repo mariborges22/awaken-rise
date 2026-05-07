@@ -6,9 +6,10 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/wepink-clone/backend/internal/domain/entity"
-	"github.com/wepink-clone/backend/internal/ports"
-	"github.com/wepink-clone/backend/internal/usecase"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/ports"
+	"github.com/awaken-rise/backend/internal/usecase"
 )
 
 type OrderHandler struct {
@@ -107,3 +108,25 @@ func (h *OrderHandler) Ready(w http.ResponseWriter, r *http.Request) {
 
 	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "ready"})
 }
+
+func (h *OrderHandler) Webhook(w http.ResponseWriter, r *http.Request) {
+	var payload usecase.WebhookPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid webhook payload")
+		return
+	}
+
+	// Security Note: Validate X-Signature or x-correlation-id headers here based on MercadoPago docs
+
+	if err := h.paymentUseCase.HandleWebhook(r.Context(), payload); err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "received"})
+}
+
+func (h *OrderHandler) Metrics() http.Handler {
+	return promhttp.Handler()
+}
+

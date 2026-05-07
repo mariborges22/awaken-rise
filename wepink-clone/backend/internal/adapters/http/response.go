@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/wepink-clone/backend/internal/pkg/logger"
+	"github.com/awaken-rise/backend/internal/pkg/logger"
 )
 
 type APIResponse struct {

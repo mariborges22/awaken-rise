@@ -2,7 +2,7 @@ package ports
 
 import (
 	"context"
-	"github.com/wepink-clone/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/entity"
 )
 
 type OrderRepository interface {
@@ -15,6 +15,16 @@ type PaymentRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.Payment, error)
 	FindByOrderID(ctx context.Context, orderID string) ([]*entity.Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (*entity.Payment, error)
+}
+
+type TenantConfig struct {
+	TenantID    string
+	MPAccessToken string // Mercado Pago Token (Criptografado no banco)
+	Status      string
+}
+
+type TenantRepository interface {
+	FindByID(ctx context.Context, id string) (*TenantConfig, error)
 }
 
 type TransactionManager interface {

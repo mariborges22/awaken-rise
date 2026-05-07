@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/wepink-clone/backend/internal/ports"
+	"github.com/awaken-rise/backend/internal/ports"
 )
 
 type FakePaymentGateway struct{}

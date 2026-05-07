@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/wepink-clone/backend/internal/pkg/logger"
+	"github.com/awaken-rise/backend/internal/pkg/logger"
 )
 
 func CorrelationIDMiddleware(next http.Handler) http.Handler {
