@@ -54,6 +54,8 @@ jobs:
           ${{ secrets.SSH_PRIVATE_KEY }}
           EOF
           chmod 600 ~/.ssh/id_rsa
+          echo "Fingerprint da chave que o Actions está usando:"
+          ssh-keygen -l -E md5 -f ~/.ssh/id_rsa
           ssh-keyscan -H ${{ steps.infra_outputs.outputs.DROPLET_IP }} >> ~/.ssh/known_hosts
 
       - name: Update Ansible Inventory
