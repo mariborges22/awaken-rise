@@ -59,14 +59,25 @@ func main() {
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:         redisURL,
-		PoolSize:     10,
-		MinIdleConns: 5,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-	})
+	var redisOptions *redis.Options
+	if redisURL != "" {
+		var err error
+		redisOptions, err = redis.ParseURL(redisURL)
+		if err != nil {
+			slog.Warn("Failed to parse REDIS_URL, falling back to default options", "error", err)
+			redisOptions = &redis.Options{Addr: redisURL}
+		}
+	} else {
+		redisOptions = &redis.Options{Addr: "localhost:6379"}
+	}
+
+	redisOptions.PoolSize = 10
+	redisOptions.MinIdleConns = 5
+	redisOptions.DialTimeout = 5 * time.Second
+	redisOptions.ReadTimeout = 3 * time.Second
+	redisOptions.WriteTimeout = 3 * time.Second
+
+	redisClient := redis.NewClient(redisOptions)
 	
 	rabbitAdapter, err := rabbitmq.NewRabbitMQAdapter(rabbitURL)
 	if err != nil {

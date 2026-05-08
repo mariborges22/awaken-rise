@@ -15,15 +15,6 @@ resource "digitalocean_database_cluster" "mysql_staging" {
   node_count = 1
 }
 
-# Redis Gerenciado
-resource "digitalocean_database_cluster" "redis_staging" {
-  name       = "awakenrise-redis-staging"
-  engine     = "redis"
-  version    = "7"
-  size       = "db-s-1vcpu-1gb"
-  region     = var.region
-  node_count = 1
-}
 
 resource "digitalocean_droplet" "wepink_app" {
   image  = "ubuntu-22-04-x64"
@@ -57,6 +48,3 @@ output "mysql_password" {
   sensitive = true
 }
 
-output "redis_host" {
-  value = digitalocean_database_cluster.redis_staging.private_host
-}
