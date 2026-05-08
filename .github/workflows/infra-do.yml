@@ -2,11 +2,11 @@ name: Infra & Deploy (DigitalOcean)
 
 on:
   push:
-    branches: [ main, master, staging ]
+    branches: [  master, staging ]
 
 env:
   TF_CLOUD_ORGANIZATION: "awakenrise"
-  TF_WORKSPACE: "wepink-staging"
+  TF_WORKSPACE: "staging"
 
 jobs:
   terraform:
