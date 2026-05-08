@@ -4,7 +4,7 @@ terraform {
   cloud {
     organization = "awakenrise"
     workspaces {
-      name = "wepink-staging"
+      name = "staging"
     }
   }
 

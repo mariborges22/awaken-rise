@@ -4,10 +4,6 @@ on:
   push:
     branches: [  master, staging ]
 
-env:
-  TF_CLOUD_ORGANIZATION: "awakenrise"
-  TF_WORKSPACE: "staging"
-
 jobs:
   terraform:
     name: "Terraform & Ansible"
