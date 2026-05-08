@@ -54,6 +54,10 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ steps.infra_outputs.outputs.DROPLET_IP }} >> ~/.ssh/known_hosts
 
+      - name: Update Ansible Inventory
+        run: |
+          sed -i "s/TARGET_IP/${{ steps.infra_outputs.outputs.DROPLET_IP }}/g" infra/ansible/inventory/staging/hosts.ini
+
       - name: Run Ansible
         run: |
           ansible-playbook -i infra/ansible/inventory/staging/hosts.ini \
