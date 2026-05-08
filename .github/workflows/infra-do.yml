@@ -60,11 +60,12 @@ jobs:
           with open(key_path, "w") as f:
               f.write(os.environ["SSH_KEY"].strip() + "\n")
           os.chmod(key_path, 0o600)
-          
-          # Executa o keyscan via shell após criar a pasta
           os.system(f"ssh-keyscan -H {os.environ['DROPLET_IP']} >> {os.path.join(ssh_dir, 'known_hosts')}")
           print("Chave configurada com sucesso!")
-          os.system(f"ssh-keygen -l -E md5 -f {key_path}")
+
+      - name: Test SSH Connection
+        run: |
+          ssh -vvv -o BatchMode=yes -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i /home/runner/.ssh/id_ed25519 root@${{ steps.infra_outputs.outputs.DROPLET_IP }} "echo 'SSH REALMENTE FUNCIONA!'"
 
       - name: Update Ansible Inventory
         run: |
@@ -74,7 +75,7 @@ jobs:
         run: |
           ansible-playbook -vvv -i infra/ansible/inventory/staging/hosts.ini \
             infra/ansible/site.yml \
-            --ssh-extra-args='-o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o UserKnownHostsFile=/home/runner/.ssh/known_hosts' \
+            --ssh-extra-args='-o IdentitiesOnly=yes -o PreferredAuthentications=publickey' \
             -e "target_ip=${{ steps.infra_outputs.outputs.DROPLET_IP }}" \
             -e "mysql_host=${{ steps.infra_outputs.outputs.MYSQL_HOST }}" \
             -e "mysql_port=${{ steps.infra_outputs.outputs.MYSQL_PORT }}" \
