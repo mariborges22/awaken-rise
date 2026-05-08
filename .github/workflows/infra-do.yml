@@ -48,11 +48,11 @@ jobs:
         working-directory: ./infra/terraform/environments/staging
 
       - name: Setup SSH Key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          cat <<EOF > ~/.ssh/id_rsa
-          ${{ secrets.SSH_PRIVATE_KEY }}
-          EOF
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           echo "Fingerprint da chave que o Actions está usando:"
           ssh-keygen -l -E md5 -f ~/.ssh/id_rsa
