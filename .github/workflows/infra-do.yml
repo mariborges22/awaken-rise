@@ -48,14 +48,12 @@ jobs:
         working-directory: ./infra/terraform/environments/staging
 
       - name: Setup SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          name: id_ed25519 # Nome do arquivo
-          known_hosts: "placeholder" # Será sobrescrito pelo ssh-keyscan abaixo
-
-      - name: Scan Host Key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
+          mkdir -p ~/.ssh
+          printf "%s" "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ steps.infra_outputs.outputs.DROPLET_IP }} >> ~/.ssh/known_hosts
           echo "Fingerprint da chave que o Actions está usando:"
           ssh-keygen -l -E md5 -f ~/.ssh/id_ed25519
@@ -68,7 +66,7 @@ jobs:
         run: |
           ansible-playbook -vvv -i infra/ansible/inventory/staging/hosts.ini \
             infra/ansible/site.yml \
-            --ssh-extra-args='-o IdentitiesOnly=yes -o PubkeyAcceptedAlgorithms=+ssh-ed25519' \
+            --ssh-extra-args='-o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o UserKnownHostsFile=/home/runner/.ssh/known_hosts' \
             -e "target_ip=${{ steps.infra_outputs.outputs.DROPLET_IP }}" \
             -e "mysql_host=${{ steps.infra_outputs.outputs.MYSQL_HOST }}" \
             -e "mysql_port=${{ steps.infra_outputs.outputs.MYSQL_PORT }}" \
@@ -76,4 +74,4 @@ jobs:
             -e "mysql_password=${{ steps.infra_outputs.outputs.MYSQL_PASSWORD }}" \
             -e "redis_url=${{ secrets.UPSTASH_REDIS_URL }}" \
             -e "rabbitmq_url=${{ secrets.RABBITMQ_URL }}" \
-            -e "ansible_ssh_private_key_file=~/.ssh/id_ed25519"
+            -e "ansible_ssh_private_key_file=/home/runner/.ssh/id_ed25519"
