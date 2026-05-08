@@ -47,6 +47,9 @@ jobs:
           echo "MYSQL_PASSWORD=$(terraform output -raw mysql_password)" >> $GITHUB_OUTPUT
         working-directory: ./infra/terraform/environments/staging
 
+      - name: Wait for Droplet
+        run: sleep 30
+
       - name: Setup SSH Key
         shell: python
         env:
