@@ -68,6 +68,7 @@ jobs:
         run: |
           ansible-playbook -vvv -i infra/ansible/inventory/staging/hosts.ini \
             infra/ansible/site.yml \
+            --ssh-extra-args='-o IdentitiesOnly=yes -o PubkeyAcceptedAlgorithms=+ssh-ed25519' \
             -e "target_ip=${{ steps.infra_outputs.outputs.DROPLET_IP }}" \
             -e "mysql_host=${{ steps.infra_outputs.outputs.MYSQL_HOST }}" \
             -e "mysql_port=${{ steps.infra_outputs.outputs.MYSQL_PORT }}" \
