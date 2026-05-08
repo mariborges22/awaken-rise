@@ -48,15 +48,23 @@ jobs:
         working-directory: ./infra/terraform/environments/staging
 
       - name: Setup SSH Key
+        shell: python
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DROPLET_IP: ${{ steps.infra_outputs.outputs.DROPLET_IP }}
         run: |
-          mkdir -p ~/.ssh
-          printf "%s" "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ steps.infra_outputs.outputs.DROPLET_IP }} >> ~/.ssh/known_hosts
-          echo "Fingerprint da chave que o Actions está usando:"
-          ssh-keygen -l -E md5 -f ~/.ssh/id_ed25519
+          import os
+          ssh_dir = os.path.expanduser("~/.ssh")
+          os.makedirs(ssh_dir, exist_ok=True)
+          key_path = os.path.join(ssh_dir, "id_ed25519")
+          with open(key_path, "w") as f:
+              f.write(os.environ["SSH_KEY"].strip() + "\n")
+          os.chmod(key_path, 0o600)
+          
+          # Executa o keyscan via shell após criar a pasta
+          os.system(f"ssh-keyscan -H {os.environ['DROPLET_IP']} >> {os.path.join(ssh_dir, 'known_hosts')}")
+          print("Chave configurada com sucesso!")
+          os.system(f"ssh-keygen -l -E md5 -f {key_path}")
 
       - name: Update Ansible Inventory
         run: |
