@@ -164,6 +164,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 		event.Payload = entity.PaymentApprovedPayload{
 			PaymentID:      payment.ID,
 			OrderID:        payment.OrderID,
+			TransactionID:  payment.TransactionID,
 			Amount:         payment.Amount,
 			IdempotencyKey: input.IdempotencyKey,
 		}

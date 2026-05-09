@@ -5,7 +5,7 @@ import (
 )
 
 func TestOrder_Confirm(t *testing.T) {
-	order := NewOrder("1", []OrderItem{{ProductID: "p1", Quantity: 1, Price: 100}})
+	order := NewOrder("1", "tenant-1", []OrderItem{{ProductID: "p1", Quantity: 1, Price: 100}})
 	
 	if order.Status != OrderPending {
 		t.Errorf("expected status PENDING, got %s", order.Status)

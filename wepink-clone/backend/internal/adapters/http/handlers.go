@@ -34,7 +34,8 @@ func NewOrderHandler(
 }
 
 type CreateOrderRequest struct {
-	Items []entity.OrderItem `json:"items"`
+	TenantID string             `json:"tenant_id"`
+	Items    []entity.OrderItem `json:"items"`
 }
 
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +45,11 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.Items)
+	if req.TenantID == "" {
+		req.TenantID = "default-tenant" // Default fallback
+	}
+
+	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.TenantID, req.Items)
 	if err != nil {
 		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
 		return

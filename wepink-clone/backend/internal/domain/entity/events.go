@@ -18,6 +18,7 @@ type OrderCreatedPayload struct {
 type PaymentApprovedPayload struct {
 	PaymentID      string  `json:"payment_id"`
 	OrderID        string  `json:"order_id"`
+	TransactionID  string  `json:"transaction_id"`
 	Amount         float64 `json:"amount"`
 	IdempotencyKey string  `json:"idempotency_key"`
 }

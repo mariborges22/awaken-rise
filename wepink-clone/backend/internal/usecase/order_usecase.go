@@ -22,8 +22,8 @@ func NewOrderUseCase(orderRepo ports.OrderRepository, publisher ports.EventPubli
 	}
 }
 
-func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, items []entity.OrderItem) (*entity.Order, error) {
-	order := entity.NewOrder(id, items)
+func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, tenantID string, items []entity.OrderItem) (*entity.Order, error) {
+	order := entity.NewOrder(id, tenantID, items)
 	
 	if err := uc.orderRepo.Save(ctx, order); err != nil {
 		return nil, fmt.Errorf("failed to save order: %w", err)
