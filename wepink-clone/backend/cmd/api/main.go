@@ -90,6 +90,7 @@ func main() {
 	processedEventRepo := mysql.NewProcessedEventRepository(db)
 	txManager := mysql.NewTransactionManager(db)
 	
+	tenantRepo := mysql.NewTenantRepository(db)
 	idempotencyStore := redisAdapter.NewIdempotencyStore(redisClient)
 	paymentGateway := payment.NewFakePaymentGateway()
 
@@ -98,6 +99,7 @@ func main() {
 	paymentUC := usecase.NewPaymentUseCase(
 		paymentRepo, 
 		orderRepo, 
+		tenantRepo,
 		idempotencyStore, 
 		txManager, 
 		rabbitAdapter, 

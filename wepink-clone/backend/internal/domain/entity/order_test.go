@@ -28,7 +28,7 @@ func TestOrder_Confirm(t *testing.T) {
 }
 
 func TestOrder_CancelAfterConfirm(t *testing.T) {
-	order := NewOrder("1", []OrderItem{{ProductID: "p1", Quantity: 1, Price: 100}})
+	order := NewOrder("1", "tenant-1", []OrderItem{{ProductID: "p1", Quantity: 1, Price: 100}})
 	_ = order.Confirm()
 
 	err := order.Cancel()
