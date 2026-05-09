@@ -14,7 +14,8 @@ func NewFakePaymentGateway() *FakePaymentGateway {
 	return &FakePaymentGateway{}
 }
 
-func (g *FakePaymentGateway) Process(ctx context.Context, amount float64) (*ports.PaymentGatewayResponse, error) {
+func (g *FakePaymentGateway) Process(ctx context.Context, req ports.PaymentRequest) (*ports.PaymentGatewayResponse, error) {
+	amount := req.Amount
 	// Simulate external network latency
 	select {
 	case <-time.After(500 * time.Millisecond):
