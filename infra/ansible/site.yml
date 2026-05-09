@@ -47,15 +47,23 @@
         state: started
         enabled: yes
 
-    - name: Configurar Firewall (UFW)
+    - name: Permitir SSH no Firewall
       ufw:
         rule: allow
-        name: "{{ item }}"
-      with_items:
-        - OpenSSH
-        - '80/tcp'
-        - '443/tcp'
-        - '8080/tcp' # Porta do App
+        name: OpenSSH
+
+    - name: Permitir Portas de Aplicação e Monitoramento
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+        - '8080'  # Backend App
+        - '3000'  # Grafana
+        - '9090'  # Prometheus
+        - '15672' # RabbitMQ Management
 
     - name: Habilitar UFW
       ufw:
