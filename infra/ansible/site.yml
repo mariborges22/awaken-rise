@@ -123,6 +123,25 @@
         networks:
           - name: awakenrise-network
 
+    - name: Aguardar container estabilizar
+      pause:
+        seconds: 5
+
+    - name: Verificar se o Backend está rodando
+      command: docker inspect -f '{{.State.Running}}' awakenrise-backend
+      register: backend_status
+      ignore_errors: yes
+
+    - name: EXIBIR LOGS DO BACKEND (Se falhou)
+      command: docker logs awakenrise-backend
+      when: backend_status.stdout != "true"
+      register: backend_logs
+
+    - name: Print Backend Logs
+      debug:
+        var: backend_logs.stdout_lines
+      when: backend_status.stdout != "true"
+
     - name: Criar config básica do Prometheus
       copy:
         dest: /tmp/prometheus.yml
