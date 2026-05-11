@@ -128,7 +128,7 @@
         seconds: 5
 
     - name: Verificar se o Backend está rodando
-      command: docker inspect -f '{{.State.Running}}' awakenrise-backend
+      command: docker inspect -f "{{ '{{' }} .State.Running {{ '}}' }}" awakenrise-backend
       register: backend_status
       ignore_errors: yes
 
