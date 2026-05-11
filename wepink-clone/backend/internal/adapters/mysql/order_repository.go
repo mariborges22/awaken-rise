@@ -31,11 +31,11 @@ func (r *OrderRepository) Save(ctx context.Context, order *entity.Order) error {
 
 	// Using UPSERT logic for simple Save (replace into or manual check)
 	// For MySQL, we can use INSERT ... ON DUPLICATE KEY UPDATE
-	query := `INSERT INTO orders (id, status, total, updated_at) 
-			  VALUES (?, ?, ?, ?) 
+	query := `INSERT INTO orders (id, tenant_id, status, total, updated_at) 
+			  VALUES (?, ?, ?, ?, ?) 
 			  ON DUPLICATE KEY UPDATE status = VALUES(status), total = VALUES(total), updated_at = VALUES(updated_at)`
 	
-	_, err := exec.ExecContext(ctx, query, order.ID, order.Status, order.Total, order.UpdatedAt)
+	_, err := exec.ExecContext(ctx, query, order.ID, order.TenantID, order.Status, order.Total, order.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to save order: %w", err)
 	}
@@ -59,8 +59,8 @@ func (r *OrderRepository) FindByID(ctx context.Context, id string) (*entity.Orde
 	exec := r.getExecutor(ctx)
 	
 	order := &entity.Order{}
-	err := exec.QueryRowContext(ctx, "SELECT id, status, total, created_at, updated_at FROM orders WHERE id = ?", id).
-		Scan(&order.ID, &order.Status, &order.Total, &order.CreatedAt, &order.UpdatedAt)
+	err := exec.QueryRowContext(ctx, "SELECT id, tenant_id, status, total, created_at, updated_at FROM orders WHERE id = ?", id).
+		Scan(&order.ID, &order.TenantID, &order.Status, &order.Total, &order.CreatedAt, &order.UpdatedAt)
 	
 	if err == sql.ErrNoRows {
 		return nil, nil

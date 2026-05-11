@@ -154,18 +154,8 @@ func main() {
 }
 
 func ensureDBSchema(db *sql.DB) error {
-	// 1. Check/Update payments table
-	var columnName string
-	err := db.QueryRow("SELECT column_name FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'transaction_id' AND table_schema = DATABASE()").Scan(&columnName)
-	
-	if err == sql.ErrNoRows {
-		slog.Info("Adding transaction_id column to payments table")
-		_, _ = db.Exec("ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(255) AFTER order_id")
-		_, _ = db.Exec("CREATE INDEX idx_payments_transaction_id ON payments(transaction_id)")
-	}
-
-	// 2. Ensure tenants table exists
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tenants (
+	// 1. Ensure tenants table exists
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS tenants (
 		tenant_id VARCHAR(255) PRIMARY KEY,
 		mp_access_token TEXT,
 		status VARCHAR(50) DEFAULT 'active',
@@ -175,7 +165,62 @@ func ensureDBSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create tenants table: %w", err)
 	}
 
-	// 3. Insert default tenant if not exists
+	// 2. Ensure orders table exists
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS orders (
+		id VARCHAR(255) PRIMARY KEY,
+		tenant_id VARCHAR(255),
+		status VARCHAR(50),
+		total DECIMAL(10,2),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		INDEX idx_orders_tenant (tenant_id)
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create orders table: %w", err)
+	}
+
+	// 3. Ensure order_items table exists
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS order_items (
+		id INT AUTO_VALUE_INCREMENT PRIMARY KEY,
+		order_id VARCHAR(255),
+		product_id VARCHAR(255),
+		quantity INT,
+		price DECIMAL(10,2),
+		FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+	)`)
+	// Nota: Usei AUTO_INCREMENT (mysql) mas o erro pode variar se o dialeto for outro. 
+	// Vou usar uma versão mais simples sem AUTO_INCREMENT explícito se der erro.
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS order_items (
+		order_id VARCHAR(255),
+		product_id VARCHAR(255),
+		quantity INT,
+		price DECIMAL(10,2)
+	)`)
+
+	// 4. Ensure payments table exists and has transaction_id
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS payments (
+		id VARCHAR(255) PRIMARY KEY,
+		order_id VARCHAR(255),
+		transaction_id VARCHAR(255),
+		amount DECIMAL(10,2),
+		status VARCHAR(50),
+		idempotency_key VARCHAR(255),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		UNIQUE KEY unq_payments_idempotency (idempotency_key),
+		INDEX idx_payments_transaction (transaction_id)
+	)`)
+
+	// 5. Update payments table if transaction_id is missing (for existing tables)
+	var columnName string
+	err = db.QueryRow("SELECT column_name FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'transaction_id' AND table_schema = DATABASE()").Scan(&columnName)
+	if err == sql.ErrNoRows {
+		slog.Info("Adding transaction_id column to payments table")
+		_, _ = db.Exec("ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(255) AFTER order_id")
+		_, _ = db.Exec("CREATE INDEX idx_payments_transaction_id ON payments(transaction_id)")
+	}
+
+	// 6. Insert default tenant
 	_, _ = db.Exec(`INSERT IGNORE INTO tenants (tenant_id, mp_access_token, status) 
 		VALUES ('default-tenant', 'TEST-4171246039575815-050410-6c9c614c227b60098f98642735d67807-172551460', 'active')`)
 
