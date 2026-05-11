@@ -68,6 +68,8 @@ services:
       dockerfile: Dockerfile
     container_name: wepink_backend
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     environment:
       - DB_URL=${DB_USER:-user}:${DB_PASSWORD:-pass}@tcp(mysql:3306)/wepink?parseTime=true
       - REDIS_URL=redis:6379
