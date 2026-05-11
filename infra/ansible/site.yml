@@ -188,6 +188,19 @@
         networks:
           - name: awakenrise-network
 
+    - name: Verificar se o Frontend está rodando
+      command: docker inspect -f "{{ '{{' }} .State.Running {{ '}}' }}" wepink-frontend
+      register: frontend_status
+      ignore_errors: yes
+
+    - name: LOGS DO FRONTEND (Diagnóstico)
+      command: docker logs wepink-frontend
+      register: frontend_logs
+
+    - name: Print Frontend Logs
+      debug:
+        var: frontend_logs.stdout_lines
+
     - name: Criar diretório de provisionamento do Grafana
       file:
         path: /tmp/grafana/provisioning/datasources
