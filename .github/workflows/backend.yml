@@ -61,15 +61,18 @@ jobs:
           
       - name: Wait for Backend Ready
         run: |
-          MAX_RETRIES=15
+          MAX_RETRIES=30
           COUNT=0
-          until $(curl --output /dev/null --silent --head --fail http://localhost:8080/health/ready); do
+          echo "Checking backend health at http://localhost:8080/health/ready"
+          until curl -v --output /dev/null --silent --head --fail http://localhost:8080/health/ready; do
             if [ $COUNT -eq $MAX_RETRIES ]; then
-              echo "Backend failed to become ready"
+              echo "Backend failed to become ready after $MAX_RETRIES retries"
+              docker compose -f wepink-clone/infra/docker/docker-compose.yml ps
               docker compose -f wepink-clone/infra/docker/docker-compose.yml logs backend
+              docker compose -f wepink-clone/infra/docker/docker-compose.yml logs mysql
               exit 1
             fi
-            echo "Waiting for backend... ($COUNT/$MAX_RETRIES)"
+            echo "Waiting for backend and dependencies... ($COUNT/$MAX_RETRIES)"
             sleep 5
             COUNT=$((COUNT+1))
           done
