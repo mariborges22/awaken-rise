@@ -74,6 +74,12 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	RespondWithSuccess(w, r, http.StatusOK, order)
 }
 
+type ProcessPaymentRequest struct {
+	PaymentMethod string `json:"payment_method"`
+	CardToken     string `json:"card_token"`
+	BuyerEmail    string `json:"buyer_email"`
+}
+
 func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	orderID := r.PathValue("orderId")
 	if orderID == "" {
@@ -81,10 +87,20 @@ func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req ProcessPaymentRequest
+	_ = json.NewDecoder(r.Body).Decode(&req) // Ignore error, use defaults if empty
+
 	input := usecase.ProcessPaymentInput{
 		PaymentID:      uuid.New().String(),
 		OrderID:        orderID,
-		IdempotencyKey: uuid.New().String(),
+		IdempotencyKey: r.Header.Get("X-Idempotency-Key"),
+		PaymentMethod:  req.PaymentMethod,
+		CardToken:      req.CardToken,
+		BuyerEmail:     req.BuyerEmail,
+	}
+
+	if input.IdempotencyKey == "" {
+		input.IdempotencyKey = uuid.New().String()
 	}
 
 	payment, err := h.paymentUseCase.ProcessPayment(r.Context(), input)

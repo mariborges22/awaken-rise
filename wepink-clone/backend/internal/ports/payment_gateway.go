@@ -23,4 +23,5 @@ type PaymentGatewayResponse struct {
 
 type PaymentGateway interface {
 	Process(ctx context.Context, req PaymentRequest) (*PaymentGatewayResponse, error)
+	GetPaymentStatus(ctx context.Context, transactionID string, tenantToken string) (*PaymentGatewayResponse, error)
 }

@@ -38,3 +38,11 @@ func (g *FakePaymentGateway) Process(ctx context.Context, req ports.PaymentReque
 		ErrorMessage:  errorMessage,
 	}, nil
 }
+
+func (g *FakePaymentGateway) GetPaymentStatus(ctx context.Context, transactionID string, tenantToken string) (*ports.PaymentGatewayResponse, error) {
+	return &ports.PaymentGatewayResponse{
+		Success:       true,
+		TransactionID: transactionID,
+		Status:        "approved",
+	}, nil
+}

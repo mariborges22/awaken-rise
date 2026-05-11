@@ -38,6 +38,9 @@ type Order struct {
 func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 	var total float64
 	for _, item := range items {
+		if item.Price < 0 || item.Quantity <= 0 {
+			continue // Ou poderíamos retornar um erro aqui
+		}
 		total += item.Price * float64(item.Quantity)
 	}
 
@@ -55,6 +58,9 @@ func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 func (o *Order) RecalculateTotal() {
 	var total float64
 	for _, item := range o.Items {
+		if item.Price < 0 || item.Quantity <= 0 {
+			continue
+		}
 		total += item.Price * float64(item.Quantity)
 	}
 	o.Total = total

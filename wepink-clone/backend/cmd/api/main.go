@@ -58,6 +58,11 @@ func main() {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Ensure Database Schema is up to date
+	if err := ensureDBSchema(db); err != nil {
+		slog.Error("Failed to update database schema", "error", err)
+	}
 
 	var redisOptions *redis.Options
 	if redisURL != "" {
@@ -145,4 +150,33 @@ func main() {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func ensureDBSchema(db *sql.DB) error {
+	// 1. Check/Update payments table
+	var columnName string
+	err := db.QueryRow("SELECT column_name FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'transaction_id' AND table_schema = DATABASE()").Scan(&columnName)
+	
+	if err == sql.ErrNoRows {
+		slog.Info("Adding transaction_id column to payments table")
+		_, _ = db.Exec("ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(255) AFTER order_id")
+		_, _ = db.Exec("CREATE INDEX idx_payments_transaction_id ON payments(transaction_id)")
+	}
+
+	// 2. Ensure tenants table exists
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS tenants (
+		tenant_id VARCHAR(255) PRIMARY KEY,
+		mp_access_token TEXT,
+		status VARCHAR(50) DEFAULT 'active',
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create tenants table: %w", err)
+	}
+
+	// 3. Insert default tenant if not exists
+	_, _ = db.Exec(`INSERT IGNORE INTO tenants (tenant_id, mp_access_token, status) 
+		VALUES ('default-tenant', 'TEST-4171246039575815-050410-6c9c614c227b60098f98642735d67807-172551460', 'active')`)
+
+	return nil
 }

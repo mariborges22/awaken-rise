@@ -15,6 +15,7 @@ type PaymentRepository interface {
 	FindByID(ctx context.Context, id string) (*entity.Payment, error)
 	FindByOrderID(ctx context.Context, orderID string) ([]*entity.Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (*entity.Payment, error)
+	FindByTransactionID(ctx context.Context, transactionID string) (*entity.Payment, error)
 }
 
 type TenantConfig struct {

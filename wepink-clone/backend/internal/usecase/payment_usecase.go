@@ -202,19 +202,80 @@ type WebhookPayload struct {
 func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayload) error {
 	correlationID, _ := ctx.Value(logger.CorrelationIDKey).(string)
 	
-	logger.Info(ctx, "Received webhook", "action", payload.Action, "type", payload.Type, "transaction_id", payload.Data.ID, "correlation_id", correlationID)
+	logger.Info(ctx, "Received webhook from Mercado Pago", 
+		"action", payload.Action, 
+		"type", payload.Type, 
+		"transaction_id", payload.Data.ID)
 
 	if payload.Type != "payment" {
-		return nil // Ignore non-payment webhooks
+		return nil 
 	}
 
-	// For security, we should query Mercado Pago API to get the real status of payload.Data.ID
-	// Here we simulate the status update for demonstration.
-	// In a real scenario, you'd fetch the Payment by TransactionID:
-	// payment, err := uc.paymentRepo.FindByTransactionID(ctx, payload.Data.ID)
-	
-	// Assuming payment is found and we verify the status is now "approved"
-	logger.Info(ctx, "Webhook processing complete (Simulated)", "transaction_id", payload.Data.ID)
+	// 1. Find Payment by TransactionID
+	payment, err := uc.paymentRepo.FindByTransactionID(ctx, payload.Data.ID)
+	if err != nil {
+		return fmt.Errorf("failed to find payment by transaction_id: %w", err)
+	}
+	if payment == nil {
+		logger.Warn(ctx, "Payment not found for webhook transaction", "transaction_id", payload.Data.ID)
+		return nil // We don't have this payment, might be from another system or old
+	}
+
+	// 2. Get Order and Tenant Config
+	order, err := uc.orderRepo.FindByID(ctx, payment.OrderID)
+	if err != nil || order == nil {
+		return fmt.Errorf("order not found for payment: %w", err)
+	}
+
+	tenant, err := uc.tenantRepo.FindByID(ctx, order.TenantID)
+	if err != nil || tenant == nil {
+		return fmt.Errorf("tenant not found: %w", err)
+	}
+
+	// 3. Verify Status with Mercado Pago (Security)
+	resp, err := uc.gateway.GetPaymentStatus(ctx, payload.Data.ID, tenant.MPAccessToken)
+	if err != nil {
+		return fmt.Errorf("failed to verify payment status with gateway: %w", err)
+	}
+
+	if resp.Status == "approved" {
+		logger.Info(ctx, "Payment confirmed via webhook", "transaction_id", payload.Data.ID, "order_id", order.ID)
+		
+		if err := payment.Approve(); err != nil {
+			return err
+		}
+
+		// 4. Atomic Update
+		err = uc.txManager.Execute(ctx, func(ctx context.Context) error {
+			if err := uc.paymentRepo.Save(ctx, payment); err != nil {
+				return err
+			}
+			if err := order.Confirm(); err == nil {
+				return uc.orderRepo.Save(ctx, order)
+			}
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		// 5. Publish Event
+		event := entity.Event{
+			ID:            uuid.New().String(),
+			CorrelationID: correlationID,
+			Type:          "payment.approved",
+			Timestamp:     time.Now(),
+			Payload: entity.PaymentApprovedPayload{
+				PaymentID:     payment.ID,
+				OrderID:       payment.OrderID,
+				TransactionID: payment.TransactionID,
+				Amount:        payment.Amount,
+			},
+		}
+		_ = uc.publisher.Publish(ctx, "payments_exchange", event.Type, event)
+	}
+
 	return nil
 }
 
