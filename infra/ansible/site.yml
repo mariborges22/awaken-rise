@@ -116,7 +116,7 @@
           - "8080:8080"
         env:
           APP_ENV: staging
-          DB_URL: "{{ mysql_user }}:{{ mysql_password }}@tcp({{ mysql_host }}:{{ mysql_port }})/defaultdb?tls=true&parseTime=true"
+          DB_URL: "{{ mysql_user }}:{{ mysql_password }}@tcp({{ mysql_host }}:{{ mysql_port }})/defaultdb?tls=skip-verify&parseTime=true"
           REDIS_URL: "{{ redis_url }}"
           RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
           # Adicione outras variáveis de ambiente necessárias aqui
