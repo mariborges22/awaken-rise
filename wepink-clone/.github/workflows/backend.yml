@@ -98,4 +98,4 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: mariborges22/wepink-backend:latest
+          tags: maribma19/awakenrise_backend:latest
