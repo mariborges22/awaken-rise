@@ -58,7 +58,7 @@ jobs:
       - name: Start Frontend container
         run: |
           docker build -t wepink-frontend:local ./wepink-clone/frontend
-          docker run -d --name smoke-frontend --add-host backend:127.0.0.1 -p 8081:8080 wepink-frontend:local
+          docker run -d --name smoke-frontend --add-host awakenrise-backend:127.0.0.1 -p 8081:8080 wepink-frontend:local
           
       - name: Verify Nginx serving index.html
         run: |
