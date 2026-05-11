@@ -163,6 +163,24 @@
         networks:
           - name: awakenrise-network
 
+    - name: Criar diretório de provisionamento do Grafana
+      file:
+        path: /tmp/grafana/provisioning/datasources
+        state: directory
+        mode: '0755'
+
+    - name: Configurar Data Source do Prometheus no Grafana
+      copy:
+        dest: /tmp/grafana/provisioning/datasources/prometheus.yml
+        content: |
+          apiVersion: 1
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+
     - name: Rodar container do Grafana
       docker_container:
         name: grafana
@@ -171,6 +189,8 @@
         restart_policy: always
         published_ports:
           - "3000:3000"
+        volumes:
+          - /tmp/grafana/provisioning:/etc/grafana/provisioning
         env:
           GF_SECURITY_ADMIN_PASSWORD: "admin"
         networks:

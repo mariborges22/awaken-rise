@@ -124,6 +124,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
 	mux.HandleFunc("GET /health/ready", handlerHTTP.Ready)
+	mux.Handle("GET /metrics", handlerHTTP.Metrics())
 	mux.HandleFunc("POST /orders", handlerHTTP.CreateOrder)
 	mux.HandleFunc("GET /orders/{id}", handlerHTTP.GetOrder)
 	mux.HandleFunc("POST /payments/{orderId}", handlerHTTP.ProcessPayment)
