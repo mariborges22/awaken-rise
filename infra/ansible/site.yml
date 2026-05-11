@@ -77,6 +77,10 @@
         group: root
         mode: '0755'
 
+    - name: Criar rede customizada do Docker
+      docker_network:
+        name: awakenrise-network
+
     - name: Pull da imagem Docker mais recente
       docker_image:
         name: "{{ app_image }}"
@@ -94,6 +98,8 @@
         env:
           RABBITMQ_DEFAULT_USER: "wepink_user"
           RABBITMQ_DEFAULT_PASS: "wepink_pass"
+        networks:
+          - name: awakenrise-network
 
     - name: Remover container antigo (se existir) para liberar porta
       docker_container:
@@ -115,9 +121,7 @@
           RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
           # Adicione outras variáveis de ambiente necessárias aqui
         networks:
-          - name: bridge
-        links:
-          - rabbitmq
+          - name: awakenrise-network
 
     - name: Criar config básica do Prometheus
       copy:
@@ -140,8 +144,8 @@
           - "9090:9090"
         volumes:
           - /tmp/prometheus.yml:/etc/prometheus/prometheus.yml
-        links:
-          - awakenrise-backend
+        networks:
+          - name: awakenrise-network
 
     - name: Pull da imagem do Frontend
       docker_image:
@@ -156,10 +160,8 @@
         restart_policy: always
         published_ports:
           - "80:8080"
-        links:
-          - awakenrise-backend
         networks:
-          - name: bridge
+          - name: awakenrise-network
 
     - name: Rodar container do Grafana
       docker_container:
@@ -171,5 +173,5 @@
           - "3000:3000"
         env:
           GF_SECURITY_ADMIN_PASSWORD: "admin"
-        links:
-          - prometheus
+        networks:
+          - name: awakenrise-network
