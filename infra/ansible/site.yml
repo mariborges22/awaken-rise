@@ -132,15 +132,21 @@
       register: backend_status
       ignore_errors: yes
 
-    - name: EXIBIR LOGS DO BACKEND (Se falhou)
+    - name: LOGS DO BACKEND (Diagnóstico)
       command: docker logs awakenrise-backend
-      when: backend_status.stdout != "true"
       register: backend_logs
 
     - name: Print Backend Logs
       debug:
         var: backend_logs.stdout_lines
-      when: backend_status.stdout != "true"
+
+    - name: Verificar portas abertas no servidor (Host)
+      command: ss -tulpn
+      register: host_ports
+
+    - name: Print Host Ports
+      debug:
+        var: host_ports.stdout_lines
 
     - name: Criar config básica do Prometheus
       copy:
