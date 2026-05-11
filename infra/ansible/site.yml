@@ -141,6 +141,24 @@
         links:
           - wepink-backend
 
+    - name: Pull da imagem do Frontend
+      docker_image:
+        name: "maribma19/awakenrise_frontend:latest"
+        source: pull
+
+    - name: Rodar container do Frontend
+      docker_container:
+        name: wepink-frontend
+        image: "maribma19/awakenrise_frontend:latest"
+        state: started
+        restart_policy: always
+        published_ports:
+          - "80:8080"
+        links:
+          - wepink-backend
+        networks:
+          - name: bridge
+
     - name: Rodar container do Grafana
       docker_container:
         name: grafana
