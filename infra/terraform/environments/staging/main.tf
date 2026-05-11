@@ -15,6 +15,15 @@ resource "digitalocean_database_cluster" "mysql_staging" {
   node_count = 1
 }
 
+resource "digitalocean_database_firewall" "mysql_fw" {
+  cluster_id = digitalocean_database_cluster.mysql_staging.id
+
+  rule {
+    type  = "droplet"
+    value = digitalocean_droplet.wepink_app.id
+  }
+}
+
 
 resource "digitalocean_droplet" "wepink_app" {
   image  = "ubuntu-22-04-x64"
