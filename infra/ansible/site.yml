@@ -95,6 +95,11 @@
           RABBITMQ_DEFAULT_USER: "wepink_user"
           RABBITMQ_DEFAULT_PASS: "wepink_pass"
 
+    - name: Remover container antigo (se existir) para liberar porta
+      docker_container:
+        name: wepink-backend
+        state: absent
+
     - name: Rodar container do Backend
       docker_container:
         name: awakenrise-backend
