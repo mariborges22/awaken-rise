@@ -57,7 +57,7 @@ jobs:
       
       - name: Start services
         run: |
-          docker-compose -f wepink-clone/infra/docker/docker-compose.yml up -d mysql redis rabbitmq backend
+          docker compose -f wepink-clone/infra/docker/docker-compose.yml up -d mysql redis rabbitmq backend
           
       - name: Wait for Backend Ready
         run: |
@@ -66,7 +66,7 @@ jobs:
           until $(curl --output /dev/null --silent --head --fail http://localhost:8080/health/ready); do
             if [ $COUNT -eq $MAX_RETRIES ]; then
               echo "Backend failed to become ready"
-              docker-compose -f wepink-clone/infra/docker/docker-compose.yml logs backend
+              docker compose -f wepink-clone/infra/docker/docker-compose.yml logs backend
               exit 1
             fi
             echo "Waiting for backend... ($COUNT/$MAX_RETRIES)"
@@ -77,7 +77,7 @@ jobs:
 
       - name: Stop services
         if: always()
-        run: docker-compose -f wepink-clone/infra/docker/docker-compose.yml down
+        run: docker compose -f wepink-clone/infra/docker/docker-compose.yml down
 
   push-image:
     name: Push Docker Image
