@@ -105,10 +105,7 @@
           - "8080:8080"
         env:
           APP_ENV: staging
-          DB_HOST: "{{ mysql_host }}"
-          DB_PORT: "{{ mysql_port }}"
-          DB_USER: "{{ mysql_user }}"
-          DB_PASSWORD: "{{ mysql_password }}"
+          DB_URL: "{{ mysql_user }}:{{ mysql_password }}@tcp({{ mysql_host }}:{{ mysql_port }})/wepink?parseTime=true"
           REDIS_URL: "{{ redis_url }}"
           RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
           # Adicione outras variáveis de ambiente necessárias aqui
