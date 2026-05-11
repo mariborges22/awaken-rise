@@ -172,7 +172,18 @@
         networks:
           - name: awakenrise-network
 
-    - name: Pull da imagem do Frontend
+    - name: Remover container do Frontend antigo
+      docker_container:
+        name: wepink-frontend
+        state: absent
+
+    - name: Remover imagem antiga para evitar cache
+      docker_image:
+        name: "maribma19/awakenrise_frontend:latest"
+        state: absent
+        force_absent: yes
+
+    - name: Pull da imagem do Frontend (Nova Versão)
       docker_image:
         name: "maribma19/awakenrise_frontend:latest"
         source: pull
