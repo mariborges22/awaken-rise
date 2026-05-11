@@ -1,3 +1,4 @@
+# Frontend CI - Forced Rebuild
 name: Frontend CI
 
 on:
