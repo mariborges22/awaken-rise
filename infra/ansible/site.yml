@@ -4,7 +4,7 @@
   become: yes
   vars:
     project_root: "/opt/wepink"
-    app_image: "mariborges22/wepink-backend:latest" # Substitua pelo seu usuário do Docker Hub
+    app_image: "maribma19/awakenrise_backend:latest" # Substitua pelo seu usuário do Docker Hub
 
   tasks:
     - name: Atualizar cache do apt

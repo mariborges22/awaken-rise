@@ -102,4 +102,4 @@ jobs:
         with:
           context: ./wepink-clone/frontend
           push: true
-          tags: mariborges22/wepink-frontend:latest
+          tags: maribma19/awakenrise_frontend:latest
