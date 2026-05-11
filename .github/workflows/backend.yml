@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
           cache-dependency-path: wepink-clone/backend/go.sum
       - name: Install dependencies
         run: cd wepink-clone/backend && go mod download

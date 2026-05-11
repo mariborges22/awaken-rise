@@ -92,7 +92,7 @@ func main() {
 	
 	tenantRepo := mysql.NewTenantRepository(db)
 	idempotencyStore := redisAdapter.NewIdempotencyStore(redisClient)
-	paymentGateway := payment.NewFakePaymentGateway()
+	paymentGateway := payment.NewMercadoPagoAdapter()
 
 	// 4. Use Cases
 	orderUC := usecase.NewOrderUseCase(orderRepo, rabbitAdapter)
