@@ -1,8 +1,9 @@
 # Stage 1: Build
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
-# Instalar dependências necessárias para o build
-RUN apk add --no-cache git ca-certificates
+# Instalar patches de segurança e dependências
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
@@ -15,10 +16,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
 
 # Stage 2: Runtime
-FROM alpine:3.19
+FROM alpine:latest
 
-# Instalar certificados (necessário para chamadas HTTPS de APIs externas)
-RUN apk --no-cache add ca-certificates
+# Instalar patches de segurança e certificados
+RUN apk update && apk upgrade --no-cache && \
+    apk --no-cache add ca-certificates
 
 # Criar usuário não-root por segurança
 RUN adduser -D -g '' appuser
