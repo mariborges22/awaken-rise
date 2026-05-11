@@ -65,9 +65,9 @@
         - '9090'  # Prometheus
         - '15672' # RabbitMQ Management
 
-    - name: Habilitar UFW
+    - name: Desabilitar UFW (usar apenas Cloud Firewall da DO)
       ufw:
-        state: enabled
+        state: disabled
 
     - name: Criar diretório do projeto
       file:
