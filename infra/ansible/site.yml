@@ -45,6 +45,18 @@
           - nginx
         state: present
 
+    - name: Parar Apache (caso exista) para liberar porta 80
+      service:
+        name: apache2
+        state: stopped
+      ignore_errors: yes
+
+    - name: Remover container do Frontend antigo para liberar porta 80
+      docker_container:
+        name: wepink-frontend
+        state: absent
+      ignore_errors: yes
+
     - name: Garantir que o Nginx está rodando
       service:
         name: nginx
@@ -181,11 +193,6 @@
           - /tmp/prometheus.yml:/etc/prometheus/prometheus.yml
         networks:
           - name: awakenrise-network
-
-    - name: Remover container do Frontend antigo
-      docker_container:
-        name: wepink-frontend
-        state: absent
 
     - name: Remover imagem antiga para evitar cache
       docker_image:
