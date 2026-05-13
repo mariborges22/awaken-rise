@@ -45,3 +45,15 @@ func (r *TenantRepository) FindByID(ctx context.Context, id string) (*ports.Tena
 
 	return &config, nil
 }
+
+func (r *TenantRepository) Save(ctx context.Context, config *ports.TenantConfig) error {
+	query := `INSERT INTO tenants (tenant_id, mp_access_token, status) 
+		VALUES (?, ?, ?) 
+		ON DUPLICATE KEY UPDATE mp_access_token = VALUES(mp_access_token), status = VALUES(status)`
+	
+	_, err := r.db.ExecContext(ctx, query, config.TenantID, config.MPAccessToken, config.Status)
+	if err != nil {
+		return fmt.Errorf("failed to save tenant: %w", err)
+	}
+	return nil
+}

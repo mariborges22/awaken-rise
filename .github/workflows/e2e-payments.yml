@@ -1,0 +1,56 @@
+name: E2E Payment Integration
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-payments:
+    runs-on: ubuntu-latest
+    environment: staging
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wepink
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+        options: --health-cmd="rabbitmq-diagnostics -q check_running" --health-interval=10s --health-timeout=5s --health-retries=3
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies
+        run: |
+          cd wepink-clone/backend
+          go mod download
+
+      - name: Build and Run Backend
+        env:
+          DB_URL: "root:root@tcp(localhost:3306)/wepink?parseTime=true"
+          REDIS_URL: "localhost:6379"
+          RABBITMQ_URL: "amqp://guest:guest@localhost:5672/"
+          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+        run: |
+          cd wepink-clone/backend
+          go run cmd/api/main.go &
+          sleep 15 # Aguardar infra e app estabilizarem
+
+      - name: Run k6 E2E Flow
+        run: |
+          docker run --net=host -i grafana/k6 run -e BASE_URL="http://localhost:8080" -e MP_TOKEN="${{ secrets.MP_ACCESS_TOKEN }}" - < wepink-clone/tests/load/common_flow.js

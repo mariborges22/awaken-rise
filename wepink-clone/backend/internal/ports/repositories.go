@@ -26,6 +26,7 @@ type TenantConfig struct {
 
 type TenantRepository interface {
 	FindByID(ctx context.Context, id string) (*TenantConfig, error)
+	Save(ctx context.Context, config *TenantConfig) error
 }
 
 type TransactionManager interface {

@@ -51,6 +51,10 @@ func (a *RabbitMQAdapter) Publish(ctx context.Context, exchange string, routingK
 		})
 }
 
+func (a *RabbitMQAdapter) Channel() *amqp.Channel {
+	return a.channel
+}
+
 func (a *RabbitMQAdapter) Close() {
 	a.channel.Close()
 	a.conn.Close()

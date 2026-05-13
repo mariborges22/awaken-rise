@@ -4,7 +4,8 @@
   become: yes
   vars:
     project_root: "/opt/wepink"
-    app_image: "maribma19/awakenrise_backend:latest" # Substitua pelo seu usuário do Docker Hub
+    app_image: "maribma19/awakenrise_backend:latest"
+    domain_name: "awakenrise.com.br"
 
   tasks:
     - name: Atualizar cache do apt
@@ -21,6 +22,8 @@
           - ca-certificates
           - software-properties-common
           - python3-pip
+          - certbot
+          - python3-certbot-nginx
         state: present
 
     - name: Adicionar chave GPG do Docker
@@ -39,7 +42,14 @@
           - docker-ce
           - docker-ce-cli
           - containerd.io
+          - nginx
         state: present
+
+    - name: Garantir que o Nginx está rodando
+      service:
+        name: nginx
+        state: started
+        enabled: yes
 
     - name: Garantir que o Docker está rodando
       service:
@@ -195,7 +205,7 @@
         state: started
         restart_policy: always
         published_ports:
-          - "80:8080"
+          - "8081:80" # Porta interna para o Nginx Host fazer proxy
         networks:
           - name: awakenrise-network
 
@@ -244,3 +254,32 @@
           GF_SECURITY_ADMIN_PASSWORD: "admin"
         networks:
           - name: awakenrise-network
+
+    - name: Configurar VHost do Nginx
+      template:
+        src: nginx_vhost.j2
+        dest: /etc/nginx/sites-available/awakenrise
+      notify: Reload Nginx
+
+    - name: Habilitar VHost do Nginx
+      file:
+        src: /etc/nginx/sites-available/awakenrise
+        dest: /etc/nginx/sites-enabled/awakenrise
+        state: link
+
+    - name: Remover configuração padrão do Nginx
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Abrir portas no Firewall para HTTPS
+      ufw:
+        rule: allow
+        port: 443
+        proto: tcp
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded

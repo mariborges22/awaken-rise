@@ -115,17 +115,19 @@ func main() {
 	// 5. Consumers
 	if rabbitAdapter != nil {
 		paymentConsumer := rabbitmq.NewPaymentConsumer(
-			nil, // Channel initialization logic needed here
+			rabbitAdapter.Channel(),
 			paymentUC,
 			processedEventRepo,
 			txManager,
 		)
-		slog.Info("Payment consumer initialized")
-		_ = paymentConsumer
+		slog.Info("Payment consumer initialized and starting...")
+		if err := paymentConsumer.Consume(context.Background()); err != nil {
+			slog.Error("Failed to start payment consumer", "error", err)
+		}
 	}
 
 	// 6. HTTP Server & Middleware
-	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, rabbitAdapter)
+	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, rabbitAdapter)
 	
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
@@ -134,6 +136,7 @@ func main() {
 	mux.HandleFunc("POST /orders", handlerHTTP.CreateOrder)
 	mux.HandleFunc("GET /orders/{id}", handlerHTTP.GetOrder)
 	mux.HandleFunc("POST /payments/{orderId}", handlerHTTP.ProcessPayment)
+	mux.HandleFunc("POST /tenants", handlerHTTP.RegisterTenant)
 
 	// Wrap mux with Correlation ID Middleware
 	mainHandler := httpAdapter.CorrelationIDMiddleware(mux)
@@ -221,8 +224,13 @@ func ensureDBSchema(db *sql.DB) error {
 	}
 
 	// 6. Insert default tenant
+	mpToken := os.Getenv("MP_ACCESS_TOKEN")
+	if mpToken == "" {
+		mpToken = "TEST-4171246039575815-050410-6c9c614c227b60098f98642735d67807-172551460" // Default test token
+	}
+
 	_, _ = db.Exec(`INSERT IGNORE INTO tenants (tenant_id, mp_access_token, status) 
-		VALUES ('default-tenant', 'TEST-4171246039575815-050410-6c9c614c227b60098f98642735d67807-172551460', 'active')`)
+		VALUES ('default-tenant', ?, 'active')`, mpToken)
 
 	return nil
 }

@@ -16,6 +16,7 @@ type OrderHandler struct {
 	orderUseCase   *usecase.OrderUseCase
 	paymentUseCase *usecase.PaymentUseCase
 	db             *sql.DB
+	tenantRepo     ports.TenantRepository
 	rabbitConn     ports.EventPublisher // We can use the publisher to check if rabbit is OK
 }
 
@@ -23,12 +24,14 @@ func NewOrderHandler(
 	orderUC *usecase.OrderUseCase, 
 	paymentUC *usecase.PaymentUseCase,
 	db *sql.DB,
+	tenantRepo ports.TenantRepository,
 	rabbit ports.EventPublisher,
 ) *OrderHandler {
 	return &OrderHandler{
 		orderUseCase:   orderUC,
 		paymentUseCase: paymentUC,
 		db:             db,
+		tenantRepo:     tenantRepo,
 		rabbitConn:     rabbit,
 	}
 }
@@ -145,6 +148,40 @@ func (h *OrderHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "received"})
+}
+
+type RegisterTenantRequest struct {
+	TenantID      string `json:"tenant_id"`
+	MPAccessToken string `json:"mp_access_token"`
+}
+
+func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
+	var req RegisterTenantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.TenantID == "" || req.MPAccessToken == "" {
+		RespondWithError(w, r, http.StatusBadRequest, "Missing tenant_id or mp_access_token")
+		return
+	}
+
+	config := &ports.TenantConfig{
+		TenantID:      req.TenantID,
+		MPAccessToken: req.MPAccessToken,
+		Status:        "active",
+	}
+
+	if err := h.tenantRepo.Save(r.Context(), config); err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, "Failed to save tenant: "+err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusCreated, map[string]string{
+		"status":    "success",
+		"tenant_id": req.TenantID,
+	})
 }
 
 func (h *OrderHandler) Metrics() http.Handler {

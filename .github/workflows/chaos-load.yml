@@ -1,0 +1,33 @@
+name: Nightly Chaos & Load Test
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run k6 Chaos Test
+        id: k6_chaos
+        continue-on-error: true
+        run: |
+          # Testa contra o servidor de staging real
+          docker run -i grafana/k6 run -e BASE_URL="https://awakenrise.com.br" - < wepink-clone/tests/load/chaos_test.js
+
+      - name: Notify Discord on Failure
+        if: steps.k6_chaos.outcome == 'failure'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "Discord Webhook URL not set, skipping notification."
+            exit 0
+          fi
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"🚨 **ALERTA CRÍTICO**: O teste de caos/carga falhou em Staging!\n**Repositório:** ${{ github.repository }}\n**Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+               $DISCORD_WEBHOOK_URL
