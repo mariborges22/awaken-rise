@@ -18,15 +18,9 @@ type PaymentRepository interface {
 	FindByTransactionID(ctx context.Context, transactionID string) (*entity.Payment, error)
 }
 
-type TenantConfig struct {
-	TenantID    string
-	MPAccessToken string // Mercado Pago Token (Criptografado no banco)
-	Status      string
-}
-
 type TenantRepository interface {
-	FindByID(ctx context.Context, id string) (*TenantConfig, error)
-	Save(ctx context.Context, config *TenantConfig) error
+	FindByID(ctx context.Context, id string) (*entity.Tenant, error)
+	Save(ctx context.Context, tenant *entity.Tenant) error
 }
 
 type TransactionManager interface {

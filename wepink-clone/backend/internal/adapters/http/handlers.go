@@ -13,26 +13,29 @@ import (
 )
 
 type OrderHandler struct {
-	orderUseCase   *usecase.OrderUseCase
-	paymentUseCase *usecase.PaymentUseCase
-	db             *sql.DB
-	tenantRepo     ports.TenantRepository
-	rabbitConn     ports.EventPublisher // We can use the publisher to check if rabbit is OK
+	orderUseCase     *usecase.OrderUseCase
+	paymentUseCase   *usecase.PaymentUseCase
+	db               *sql.DB
+	tenantRepo       ports.TenantRepository
+	tenantOnboarding *usecase.TenantOnboardingUseCase
+	publisher        ports.EventPublisher
 }
 
 func NewOrderHandler(
-	orderUC *usecase.OrderUseCase, 
-	paymentUC *usecase.PaymentUseCase,
+	orderUseCase *usecase.OrderUseCase, 
+	paymentUseCase *usecase.PaymentUseCase,
 	db *sql.DB,
 	tenantRepo ports.TenantRepository,
-	rabbit ports.EventPublisher,
+	publisher ports.EventPublisher,
+	tenantOnboarding *usecase.TenantOnboardingUseCase,
 ) *OrderHandler {
 	return &OrderHandler{
-		orderUseCase:   orderUC,
-		paymentUseCase: paymentUC,
-		db:             db,
-		tenantRepo:     tenantRepo,
-		rabbitConn:     rabbit,
+		orderUseCase:     orderUseCase,
+		paymentUseCase:   paymentUseCase,
+		db:               db,
+		tenantRepo:       tenantRepo,
+		publisher:        publisher,
+		tenantOnboarding: tenantOnboarding,
 	}
 }
 
@@ -152,7 +155,11 @@ func (h *OrderHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 
 type RegisterTenantRequest struct {
 	TenantID      string `json:"tenant_id"`
+	LegalName     string `json:"legal_name"`
+	CNPJ          string `json:"cnpj"`
 	MPAccessToken string `json:"mp_access_token"`
+	ContactEmail  string `json:"contact_email"`
+	Plan          string `json:"plan"`
 }
 
 func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
@@ -162,26 +169,27 @@ func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TenantID == "" || req.MPAccessToken == "" {
-		RespondWithError(w, r, http.StatusBadRequest, "Missing tenant_id or mp_access_token")
+	input := usecase.RegisterTenantInput{
+		ID:           req.TenantID,
+		LegalName:    req.LegalName,
+		CNPJ:         req.CNPJ,
+		ContactEmail: req.ContactEmail,
+		Plan:         req.Plan,
+	}
+
+	tenant, err := h.tenantOnboarding.Register(r.Context(), input)
+	if err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	config := &ports.TenantConfig{
-		TenantID:      req.TenantID,
-		MPAccessToken: req.MPAccessToken,
-		Status:        "active",
+	// Se o token for enviado, salvamos ele (em produção seria um fluxo de OAuth)
+	if req.MPAccessToken != "" {
+		tenant.MPAccessToken = req.MPAccessToken
+		_ = h.tenantRepo.Save(r.Context(), tenant)
 	}
 
-	if err := h.tenantRepo.Save(r.Context(), config); err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, "Failed to save tenant: "+err.Error())
-		return
-	}
-
-	RespondWithSuccess(w, r, http.StatusCreated, map[string]string{
-		"status":    "success",
-		"tenant_id": req.TenantID,
-	})
+	RespondWithSuccess(w, r, http.StatusCreated, tenant)
 }
 
 func (h *OrderHandler) Metrics() http.Handler {

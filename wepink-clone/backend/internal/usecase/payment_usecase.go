@@ -8,7 +8,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/service"
 	"github.com/awaken-rise/backend/internal/pkg/logger"
+	"github.com/awaken-rise/backend/internal/pkg/metrics"
 	"github.com/awaken-rise/backend/internal/ports"
 )
 
@@ -21,29 +23,29 @@ type PaymentUseCase struct {
 	paymentRepo      ports.PaymentRepository
 	orderRepo        ports.OrderRepository
 	tenantRepo       ports.TenantRepository
-	idempotencyStore ports.IdempotencyStore
 	txManager        ports.TransactionManager
 	publisher        ports.EventPublisher
 	gateway          ports.PaymentGateway
+	idempotency      *service.IdempotencyService
 }
 
 func NewPaymentUseCase(
 	paymentRepo ports.PaymentRepository,
 	orderRepo ports.OrderRepository,
 	tenantRepo ports.TenantRepository,
-	idempotencyStore ports.IdempotencyStore,
 	txManager ports.TransactionManager,
 	publisher ports.EventPublisher,
 	gateway ports.PaymentGateway,
+	idempotency *service.IdempotencyService,
 ) *PaymentUseCase {
 	return &PaymentUseCase{
 		paymentRepo:      paymentRepo,
 		orderRepo:        orderRepo,
 		tenantRepo:       tenantRepo,
-		idempotencyStore: idempotencyStore,
 		txManager:        txManager,
 		publisher:        publisher,
 		gateway:          gateway,
+		idempotency:      idempotency,
 	}
 }
 
@@ -64,20 +66,10 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 		"idempotency_key", input.IdempotencyKey,
 		"correlation_id", correlationID)
 
-	// 1. Idempotency Check - Phase 1: Redis (Fast)
+	// 1. Idempotency Check (Delegated to Service)
 	if input.IdempotencyKey != "" {
-		if val, exists, err := uc.idempotencyStore.Get(ctx, input.IdempotencyKey); err == nil && exists {
-			logger.Info(ctx, "Idempotency hit in Redis", "key", input.IdempotencyKey)
-			if payment, ok := val.(*entity.Payment); ok {
-				return payment, nil
-			}
-		}
-
-		// 2. Idempotency Check - Phase 2: MySQL (Source of Truth)
-		if payment, err := uc.paymentRepo.FindByIdempotencyKey(ctx, input.IdempotencyKey); err == nil && payment != nil {
-			logger.Info(ctx, "Idempotency hit in MySQL", "key", input.IdempotencyKey)
-			_ = uc.idempotencyStore.Set(ctx, input.IdempotencyKey, payment, 24*time.Hour)
-			return payment, nil
+		if payment, exists, err := uc.idempotency.GetPayment(ctx, input.IdempotencyKey); err == nil && exists {
+			return payment.(*entity.Payment), nil
 		}
 	}
 
@@ -98,6 +90,17 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	if err != nil || tenant == nil {
 		logger.Error(ctx, "Tenant config not found", "tenant_id", order.TenantID)
 		return nil, fmt.Errorf("tenant configuration not found for ID: %s", order.TenantID)
+	}
+
+	// 5. Business Rule: Plan & Verification Enforcement
+	if !tenant.CanProcessSale() {
+		logger.Warn(ctx, "Tenant not allowed to process sale", 
+			"tenant_id", tenant.ID, 
+			"status", tenant.Status, 
+			"verification", tenant.VerificationStatus,
+			"usage", tenant.MonthlyUsageCount,
+			"plan", tenant.Plan)
+		return nil, errors.New("subscription limit reached or account not verified")
 	}
 
 	// 5. Create and Process Payment
@@ -188,6 +191,8 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 		logger.Error(ctx, "Failed to publish event after retries", "event_id", ev.ID)
 	}(event)
 
+	metrics.PaymentsTotal.WithLabelValues(order.TenantID, string(payment.Status)).Inc()
+
 	return payment, nil
 }
 
@@ -251,9 +256,14 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 				return err
 			}
 			if err := order.Confirm(); err == nil {
-				return uc.orderRepo.Save(ctx, order)
+				if err := uc.orderRepo.Save(ctx, order); err != nil {
+					return err
+				}
 			}
-			return nil
+			
+			// Incrementar uso do plano
+			tenant.MonthlyUsageCount++
+			return uc.tenantRepo.Save(ctx, tenant)
 		})
 
 		if err != nil {
@@ -274,6 +284,9 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 			},
 		}
 		_ = uc.publisher.Publish(ctx, "payments_exchange", event.Type, event)
+		
+		// Record metrics
+		metrics.PaymentsTotal.WithLabelValues(order.TenantID, "approved").Inc()
 	}
 
 	return nil

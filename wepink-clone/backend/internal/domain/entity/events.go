@@ -11,8 +11,9 @@ type Event struct {
 }
 
 type OrderCreatedPayload struct {
-	OrderID string  `json:"order_id"`
-	Total   float64 `json:"total"`
+	OrderID  string  `json:"order_id"`
+	TenantID string  `json:"tenant_id"`
+	Total    float64 `json:"total"`
 }
 
 type PaymentApprovedPayload struct {

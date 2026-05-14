@@ -51,8 +51,49 @@ func (a *RabbitMQAdapter) Publish(ctx context.Context, exchange string, routingK
 		})
 }
 
-func (a *RabbitMQAdapter) Channel() *amqp.Channel {
-	return a.channel
+func (r *RabbitMQAdapter) Channel() *amqp.Channel {
+	return r.channel
+}
+
+func (r *RabbitMQAdapter) DeclareResilientQueue(name string) error {
+	// 1. Declarar a Exchange de Dead Letter
+	dlxName := name + "_dlx"
+	err := r.channel.ExchangeDeclare(
+		dlxName,
+		"direct",
+		true, false, false, false, nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare DLX: %w", err)
+	}
+
+	// 2. Declarar a Fila de Dead Letter (DLQ) - O "Hospital"
+	dlqName := name + "_dlq"
+	_, err = r.channel.QueueDeclare(
+		dlqName,
+		true, false, false, false, nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare DLQ: %w", err)
+	}
+
+	// Bind DLQ to DLX
+	err = r.channel.QueueBind(dlqName, "dead", dlxName, false, nil)
+	if err != nil {
+		return fmt.Errorf("failed to bind DLQ: %w", err)
+	}
+
+	// 3. Declarar a Fila Principal com apontamento para a DLX
+	args := amqp.Table{
+		"x-dead-letter-exchange":    dlxName,
+		"x-dead-letter-routing-key": "dead",
+	}
+
+	_, err = r.channel.QueueDeclare(
+		name,
+		true, false, false, false, args,
+	)
+	return err
 }
 
 func (a *RabbitMQAdapter) Close() {
