@@ -20,6 +20,7 @@ import (
 	"github.com/awaken-rise/backend/internal/adapters/rabbitmq"
 	redisAdapter "github.com/awaken-rise/backend/internal/adapters/redis"
 	"github.com/awaken-rise/backend/internal/database"
+	"github.com/awaken-rise/backend/internal/domain/service"
 	"github.com/awaken-rise/backend/internal/usecase"
 )
 
@@ -113,7 +114,7 @@ func (a *App) Start() error {
 	}
 
 	// 7. HTTP Server
-	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, rabbitAdapter)
+	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, rabbitAdapter, tenantOnboardingUC)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
 	mux.HandleFunc("GET /health/ready", handlerHTTP.Ready)
