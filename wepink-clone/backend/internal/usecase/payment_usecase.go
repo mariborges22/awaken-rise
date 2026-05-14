@@ -152,7 +152,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 
 	// 7. Store Idempotency Result
 	if input.IdempotencyKey != "" {
-		_ = uc.idempotencyStore.Set(ctx, input.IdempotencyKey, payment, 24*time.Hour)
+		_ = uc.idempotency.Save(ctx, input.IdempotencyKey, payment)
 	}
 
 	// 8. Publish Response Events with CorrelationID
