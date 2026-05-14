@@ -128,7 +128,7 @@ func (h *OrderHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.rabbitConn == nil {
+	if h.publisher == nil {
 		RespondWithError(w, r, http.StatusServiceUnavailable, "RabbitMQ not ready")
 		return
 	}

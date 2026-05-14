@@ -72,19 +72,7 @@ func (c *PaymentConsumer) handleMessage(ctx context.Context, d amqp.Delivery) {
 		return
 	}
 
-	// 1. Verificação de Idempotência (Garante que não processamos duplicados)
-	processed, err := c.eventRepo.IsProcessed(ctxWithCorrelation, event.ID)
-	if err != nil {
-		c.handleFailure(ctxWithCorrelation, d, event.ID, "idempotency_check", err)
-		return
-	}
-	if processed {
-		slog.Info("Event already processed, skipping", "event_id", event.ID)
-		d.Ack(false)
-		return
-	}
-
-	// 2. Extrair payload do evento
+	// 1. Extrair payload do evento para ter o contexto (TenantID)
 	payloadData, _ := json.Marshal(event.Payload)
 	var orderPayload entity.OrderCreatedPayload
 	if err := json.Unmarshal(payloadData, &orderPayload); err != nil {
@@ -93,22 +81,17 @@ func (c *PaymentConsumer) handleMessage(ctx context.Context, d amqp.Delivery) {
 		return
 	}
 
-	// 3. Processar evento dentro de uma transação ACID
-	err = c.txManager.Execute(ctxWithCorrelation, func(txCtx context.Context) error {
-		input := usecase.ProcessPaymentInput{
-			PaymentID:      uuid.New().String(),
-			OrderID:        orderPayload.OrderID,
-			IdempotencyKey: "event_" + event.ID,
-		}
-
-		_, err := c.usecase.ProcessPayment(txCtx, input)
-		if err != nil {
-			return err
-		}
-
-		// 4. Registrar evento como processado (Parte da transação)
-		return c.eventRepo.MarkAsProcessed(txCtx, event.ID, event.Type)
-	})
+	// 2. Verificação de Idempotência (Garante que não processamos duplicados)
+	processed, err := c.eventRepo.IsProcessed(ctxWithCorrelation, event.ID)
+	if err != nil {
+		c.handleFailure(ctxWithCorrelation, d, event.ID, orderPayload.TenantID, "idempotency_check", err)
+		return
+	}
+	if processed {
+		slog.Info("Event already processed, skipping", "event_id", event.ID)
+		d.Ack(false)
+		return
+	}
 
 	// 3. Processar evento dentro de uma transação ACID
 	err = c.txManager.Execute(ctxWithCorrelation, func(txCtx context.Context) error {
