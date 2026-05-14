@@ -128,6 +128,18 @@
         name: wepink-backend
         state: absent
 
+    - name: Aguardar MySQL estar pronto
+      wait_for:
+        host: "{{ mysql_host }}"
+        port: "{{ mysql_port }}"
+        timeout: 60
+
+    - name: Aguardar RabbitMQ estar pronto
+      wait_for:
+        host: 127.0.0.1
+        port: 5672
+        timeout: 60
+
     - name: Rodar container do Backend
       docker_container:
         name: awakenrise-backend
@@ -139,7 +151,8 @@
         env:
           APP_ENV: staging
           DB_URL: "{{ mysql_user }}:{{ mysql_password }}@tcp({{ mysql_host }}:{{ mysql_port }})/defaultdb?tls=skip-verify&parseTime=true"
-          REDIS_URL: "{{ redis_url }}"
+          # Limpeza automática: remove prefixos como 'REDIS_URL=' ou 'export ' caso existam no segredo
+          REDIS_URL: "{{ redis_url | regex_replace('^(REDIS_URL=|export REDIS_URL=)', '') }}"
           RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
           # Adicione outras variáveis de ambiente necessárias aqui
         networks:
