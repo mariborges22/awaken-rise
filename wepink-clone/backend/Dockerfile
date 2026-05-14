@@ -28,8 +28,9 @@ USER appuser
 
 WORKDIR /app
 
-# Copiar binário do estágio de build
+# Copiar binário e recursos necessários
 COPY --from=builder /app/main .
+COPY --from=builder /app/database/migrations ./database/migrations
 
 EXPOSE 8080
 
