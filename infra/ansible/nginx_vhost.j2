@@ -7,6 +7,27 @@ server {
         root /var/www/html;
     }
 
+    # Redirecionar todo o tráfego HTTP para HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name {{ domain_name }} www.{{ domain_name }};
+
+    # Certificados SSL (Certbot padrão)
+    ssl_certificate /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem;
+
+    # Otimizações de SSL
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH";
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
     # Backend API
     location /api/ {
         proxy_pass http://127.0.0.1:8080/;

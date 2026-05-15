@@ -1,38 +1,70 @@
-<div class="container">
-  <h1>Clone Wepink - Gestão de Pedidos</h1>
+<div class="checkout-wrapper">
+  <div class="glass-card checkout-card">
+    <div class="checkout-header">
+      <div class="logo">AWAKEN<span class="dot">.</span>RISE</div>
+      <h1>Portal de <span class="gradient-text">Checkout</span></h1>
+    </div>
 
-  <div class="actions">
-    <button (click)="createSampleOrder()" [disabled]="loading">Criar Pedido de Teste</button>
-  </div>
+    <!-- Seção de Busca/Criação -->
+    <div class="action-box">
+      <div class="input-group">
+        <input type="text" [(ngModel)]="orderIdInput" placeholder="ID do Pedido (ex: ord_123)">
+        <button class="btn-secondary" (click)="lookupOrder()" [disabled]="loading">
+          <span *ngIf="!loading">CONSULTAR</span>
+          <span *ngIf="loading" class="loader"></span>
+        </button>
+      </div>
+      <div class="divider"><span>OU</span></div>
+      <button class="btn-primary full-width" (click)="createSampleOrder()" [disabled]="loading">
+        CRIAR NOVO PEDIDO DE TESTE
+      </button>
+    </div>
 
-  <hr>
+    <!-- Detalhes do Pedido -->
+    <div *ngIf="currentOrder" class="order-container animate-in">
+      <div class="order-summary">
+        <div class="summary-item">
+          <label>NÚMERO DO PEDIDO</label>
+          <span class="value">#{{ currentOrder.id.substring(0,8) }}</span>
+        </div>
+        <div class="summary-item">
+          <label>STATUS</label>
+          <span class="status-badge" [attr.data-status]="currentOrder.status">
+            {{ currentOrder.status }}
+          </span>
+        </div>
+      </div>
 
-  <div class="search">
-    <input type="text" [(ngModel)]="orderIdInput" placeholder="Digite o ID do Pedido">
-    <button (click)="lookupOrder()" [disabled]="loading">Consultar</button>
-  </div>
+      <div class="items-list">
+        <div *ngFor="let item of currentOrder.items" class="item-row">
+          <div class="item-info">
+            <span class="item-name">{{ item.product_id }}</span>
+            <span class="item-qty">{{ item.quantity }}x</span>
+          </div>
+          <span class="item-price">R$ {{ item.price | number:'1.2-2' }}</span>
+        </div>
+      </div>
 
-  <div *ngIf="errorMessage" class="error">
-    {{ errorMessage }}
-  </div>
+      <div class="total-section">
+        <label>TOTAL A PAGAR</label>
+        <span class="total-value">R$ {{ currentOrder.total | number:'1.2-2' }}</span>
+      </div>
 
-  <div *ngIf="currentOrder" class="order-details">
-    <h3>Pedido: {{ currentOrder.id }}</h3>
-    <p><strong>Status:</strong> <span [class]="currentOrder.status">{{ currentOrder.status }}</span></p>
-    <p><strong>Total:</strong> R$ {{ currentOrder.total }}</p>
-    
-    <h4>Itens:</h4>
-    <ul>
-      <li *ngFor="let item of currentOrder.items">
-        {{ item.product_id }} - {{ item.quantity }}x R$ {{ item.price }}
-      </li>
-    </ul>
+      <button *ngIf="currentOrder.status === 'PENDING'" 
+              (click)="pay()" 
+              class="pay-btn-glow"
+              [disabled]="loading">
+        <span *ngIf="!loading">FINALIZAR PAGAMENTO</span>
+        <span *ngIf="loading" class="loader"></span>
+      </button>
 
-    <button *ngIf="currentOrder.status === 'PENDING'" 
-            (click)="pay()" 
-            class="pay-btn"
-            [disabled]="loading">
-      Efetuar Pagamento
-    </button>
+      <div *ngIf="currentOrder.status === 'CONFIRMED'" class="success-message">
+        <span class="icon">✅</span> Pagamento Processado com Sucesso
+      </div>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-toast">
+      {{ errorMessage }}
+    </div>
   </div>
 </div>
