@@ -27,7 +27,7 @@ func TestPaymentUseCase_PlanEnforcement(t *testing.T) {
 	
 	// Criar o UseCase com mocks mínimos (apenas o necessário para testar o enforcement)
 	idempotency := service.NewIdempotencyService(nil, nil)
-	uc := NewPaymentUseCase(nil, orderRepo, tenantRepo, nil, nil, nil, idempotency)
+	uc := NewPaymentUseCase(nil, orderRepo, tenantRepo, nil, nil, nil, idempotency, nil)
 
 	t.Run("Block Sale for Pending Tenant", func(t *testing.T) {
 		tenantID := "pending-shop"
