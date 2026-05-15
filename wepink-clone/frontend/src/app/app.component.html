@@ -1,11 +1,13 @@
 <!-- Barra de Navegação Simples para Testes -->
 <nav class="test-nav">
   <button (click)="view = 'dashboard'" [class.active]="view === 'dashboard'">PAINEL LOJISTA</button>
+  <button (click)="view = 'onboarding'" [class.active]="view === 'onboarding'">ONBOARDING</button>
   <button (click)="view = 'checkout'" [class.active]="view === 'checkout'">CHECKOUT</button>
 </nav>
 
 <main>
   <app-dashboard *ngIf="view === 'dashboard'"></app-dashboard>
+  <app-onboarding *ngIf="view === 'onboarding'"></app-onboarding>
   <app-order *ngIf="view === 'checkout'"></app-order>
 </main>
 

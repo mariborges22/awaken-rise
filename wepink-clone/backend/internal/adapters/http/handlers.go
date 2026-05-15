@@ -157,7 +157,6 @@ type RegisterTenantRequest struct {
 	TenantID      string `json:"tenant_id"`
 	LegalName     string `json:"legal_name"`
 	CNPJ          string `json:"cnpj"`
-	MPAccessToken string `json:"mp_access_token"`
 	ContactEmail  string `json:"contact_email"`
 	Plan          string `json:"plan"`
 }
@@ -170,11 +169,11 @@ func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input := usecase.RegisterTenantInput{
-		ID:           req.TenantID,
-		LegalName:    req.LegalName,
-		CNPJ:         req.CNPJ,
-		ContactEmail: req.ContactEmail,
-		Plan:         req.Plan,
+		ID:            req.TenantID,
+		LegalName:     req.LegalName,
+		CNPJ:          req.CNPJ,
+		ContactEmail:  req.ContactEmail,
+		Plan:          req.Plan,
 	}
 
 	tenant, err := h.tenantOnboarding.Register(r.Context(), input)

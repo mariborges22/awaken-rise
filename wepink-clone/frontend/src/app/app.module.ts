@@ -6,13 +6,15 @@ import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
 import { OrderComponent } from './components/order/order.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { OnboardingComponent } from './components/onboarding/onboarding.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
 
 @NgModule({
   declarations: [
     AppComponent,
     OrderComponent,
-    DashboardComponent
+    DashboardComponent,
+    OnboardingComponent
   ],
   imports: [
     BrowserModule,

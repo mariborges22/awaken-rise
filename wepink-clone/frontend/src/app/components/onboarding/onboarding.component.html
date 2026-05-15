@@ -1,0 +1,48 @@
+<div class="onboarding-wrapper">
+  <div class="glass-card onboarding-card">
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    
+    <div class="onboarding-header">
+      <div class="hud-label">// INITIALIZING_MERCHANT_SEQUENCE</div>
+      <h1>Registro de <span class="gradient-text">Inquilino</span> <span class="kanji-sub">新規登録</span></h1>
+      <p>Configure sua infraestrutura de vendas em segundos.</p>
+    </div>
+
+    <form class="onboarding-form" (ngSubmit)="submit()">
+      <!-- Step 1: Dados do Negócio -->
+      <div class="form-section">
+        <label><span class="kanji-tiny">会社名</span> NOME DA EMPRESA / RAZÃO SOCIAL</label>
+        <input type="text" [(ngModel)]="merchantData.legalName" name="legalName" placeholder="Ex: Wepink Cosméticos LTDA" required>
+      </div>
+
+      <div class="form-section">
+        <label><span class="kanji-tiny">法人番号</span> CNPJ</label>
+        <div class="input-with-icon">
+          <input type="text" [(ngModel)]="merchantData.cnpj" name="cnpj" placeholder="00.000.000/0000-00" (input)="validateCNPJ()" required>
+          <span class="status-icon" [class.valid]="isCnpjValid">●</span>
+        </div>
+        <small *ngIf="!isCnpjValid && merchantData.cnpj" class="error-text">Formato de CNPJ inválido</small>
+      </div>
+
+      <div class="form-section">
+        <label><span class="kanji-tiny">メール</span> E-MAIL DE CONTATO</label>
+        <input type="email" [(ngModel)]="merchantData.contactEmail" name="contactEmail" placeholder="admin@sualoja.com" required>
+      </div>
+
+      <button type="submit" class="btn-launch" [disabled]="!isCnpjValid || loading">
+        <span *ngIf="!loading">INICIALIZAR SISTEMA</span>
+        <span *ngIf="loading" class="loader"></span>
+      </button>
+    </form>
+
+    <div *ngIf="successMessage" class="success-overlay animate-in">
+      <div class="success-content">
+        <span class="big-check">✓</span>
+        <h2>SISTEMA ONLINE</h2>
+        <p>Seu tenant foi criado com sucesso.</p>
+        <button class="btn-secondary" (click)="goToDashboard()">ACESSAR PAINEL</button>
+      </div>
+    </div>
+  </div>
+</div>

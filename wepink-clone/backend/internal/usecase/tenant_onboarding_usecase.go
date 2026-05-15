@@ -20,11 +20,11 @@ func NewTenantOnboardingUseCase(repo ports.TenantRepository) *TenantOnboardingUs
 }
 
 type RegisterTenantInput struct {
-	ID           string
-	LegalName    string
-	CNPJ         string
-	ContactEmail string
-	Plan         string
+	ID            string
+	LegalName     string
+	CNPJ          string
+	ContactEmail  string
+	Plan          string
 }
 
 func (uc *TenantOnboardingUseCase) Register(ctx context.Context, input RegisterTenantInput) (*entity.Tenant, error) {

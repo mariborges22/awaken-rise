@@ -22,7 +22,8 @@ type Tenant struct {
 	ID                 string
 	LegalName          string
 	CNPJ               string
-	MPAccessToken      string
+	PaymentProvider    string             // "mercado_pago", "stripe", "pagarme"
+	EncryptedConfig    string             // AES-GCM Encrypted JSON Settings
 	ContactEmail       string
 	ContactPhone       string
 	Status             string
