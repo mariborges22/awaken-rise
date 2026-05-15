@@ -1,0 +1,68 @@
+<div class="settings-wrapper">
+  <div class="glass-card settings-card">
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+
+    <div class="settings-header">
+      <div class="hud-label">// SECURE_GATEWAY_CONFIGURATION</div>
+      <h1>Central de <span class="gradient-text">Pagamentos</span> <span class="kanji-sub">決済ハブ</span></h1>
+      <p>Gerencie seus provedores e protocolos de segurança.</p>
+    </div>
+
+    <!-- Lista de Provedores -->
+    <div class="providers-grid">
+      <!-- Mercado Pago -->
+      <div class="provider-item glass-card" [class.active]="selectedProvider === 'mercadopago'">
+        <div class="provider-status" [class.connected]="isMpConnected"></div>
+        <div class="provider-icon">💳</div>
+        <div class="provider-info">
+          <h3>Mercado Pago</h3>
+          <span class="provider-type">OAuth 2.0 / API</span>
+        </div>
+        <button class="btn-connect" (click)="selectProvider('mercadopago')">
+          {{ isMpConnected ? 'CONFIGURAR' : 'CONECTAR' }}
+        </button>
+      </div>
+
+      <!-- Stripe (Próximamente) -->
+      <div class="provider-item glass-card disabled">
+        <div class="provider-icon grayscale">🌍</div>
+        <div class="provider-info">
+          <h3>Stripe</h3>
+          <span class="coming-soon">EM BREVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área de Configuração Dinâmica -->
+    <div *ngIf="selectedProvider === 'mercadopago'" class="config-panel animate-in">
+      <div class="divider"><span>CONFIGURAÇÃO MERCADO PAGO</span></div>
+      
+      <div class="oauth-section">
+        <p>Recomendamos o uso do protocolo <strong>OAuth 2.0</strong> para máxima segurança.</p>
+        <button class="btn-oauth" (click)="startOAuth()">
+          <span class="icon">🔌</span> CONECTAR CONTA OFICIAL
+        </button>
+      </div>
+
+      <div class="divider"><span>OU CONFIGURAÇÃO MANUAL</span></div>
+
+      <div class="form-group">
+        <label>ACCESS TOKEN <span class="kanji-tiny">アクセス</span></label>
+        <div class="input-secure">
+          <input type="password" [(ngModel)]="tempToken" placeholder="APP_USR-...">
+          <span class="lock-icon">🔒</span>
+        </div>
+      </div>
+
+      <button class="btn-save" (click)="saveConfig()" [disabled]="loading">
+        <span *ngIf="!loading">SALVAR PROTOCOLO</span>
+        <span *ngIf="loading" class="loader"></span>
+      </button>
+    </div>
+
+    <div *ngIf="saveSuccess" class="success-toast">
+      PROTOCOLO ATUALIZADO COM SUCESSO // ENCRYPTED_AND_SAVED
+    </div>
+  </div>
+</div>

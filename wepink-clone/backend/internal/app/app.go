@@ -84,6 +84,13 @@ func (a *App) Start() error {
 	paymentGateway := payment.NewMercadoPagoAdapter()
 	idempotencyService := service.NewIdempotencyService(idempotencyStore, paymentRepo)
 
+	// Encryption Key (Must be 32 bytes for AES-256)
+	encKey := os.Getenv("ENCRYPTION_KEY")
+	if encKey == "" {
+		encKey = "awaken-rise-secret-key-32-bytes!" 
+	}
+	encryptionService, _ := service.NewEncryptionService(encKey)
+
 	// 5. Use Cases
 	orderUC := usecase.NewOrderUseCase(orderRepo, rabbitAdapter)
 	tenantOnboardingUC := usecase.NewTenantOnboardingUseCase(tenantRepo)
@@ -95,6 +102,7 @@ func (a *App) Start() error {
 		rabbitAdapter, 
 		paymentGateway,
 		idempotencyService,
+		encryptionService,
 	)
 
 	// 6. Consumers
@@ -115,6 +123,8 @@ func (a *App) Start() error {
 
 	// 7. HTTP Server
 	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, rabbitAdapter, tenantOnboardingUC)
+	handlerHTTP.SetEncryptionService(encryptionService)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
 	mux.HandleFunc("GET /health/ready", handlerHTTP.Ready)
@@ -123,6 +133,7 @@ func (a *App) Start() error {
 	mux.HandleFunc("GET /orders/{id}", handlerHTTP.GetOrder)
 	mux.HandleFunc("POST /payments/{orderId}", handlerHTTP.ProcessPayment)
 	mux.HandleFunc("POST /tenants", handlerHTTP.RegisterTenant)
+	mux.HandleFunc("PUT /tenants/me/config", handlerHTTP.UpdateTenantConfig)
 
 	a.httpServer = &http.Server{
 		Addr:    ":8080",

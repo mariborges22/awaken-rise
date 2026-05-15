@@ -16,7 +16,7 @@ func NewTenantRepository(db *sql.DB) *TenantRepository {
 }
 
 func (r *TenantRepository) FindByID(ctx context.Context, id string) (*entity.Tenant, error) {
-	query := `SELECT tenant_id, legal_name, cnpj, mp_access_token, contact_email, 
+	query := `SELECT tenant_id, legal_name, cnpj, payment_provider, encrypted_config, contact_email, 
 	          contact_phone, status, plan_type, verification_status, monthly_usage_count, 
 	          created_at, updated_at FROM tenants WHERE tenant_id = ?`
 	
@@ -24,7 +24,7 @@ func (r *TenantRepository) FindByID(ctx context.Context, id string) (*entity.Ten
 
 	var t entity.Tenant
 	err := row.Scan(
-		&t.ID, &t.LegalName, &t.CNPJ, &t.MPAccessToken, &t.ContactEmail,
+		&t.ID, &t.LegalName, &t.CNPJ, &t.PaymentProvider, &t.EncryptedConfig, &t.ContactEmail,
 		&t.ContactPhone, &t.Status, &t.Plan, &t.VerificationStatus, 
 		&t.MonthlyUsageCount, &t.CreatedAt, &t.UpdatedAt,
 	)
@@ -41,19 +41,20 @@ func (r *TenantRepository) FindByID(ctx context.Context, id string) (*entity.Ten
 
 func (r *TenantRepository) Save(ctx context.Context, t *entity.Tenant) error {
 	query := `INSERT INTO tenants (
-		tenant_id, legal_name, cnpj, mp_access_token, contact_email, 
+		tenant_id, legal_name, cnpj, payment_provider, encrypted_config, contact_email, 
 		contact_phone, status, plan_type, verification_status, monthly_usage_count
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
 	ON DUPLICATE KEY UPDATE 
 		legal_name = VALUES(legal_name), 
-		mp_access_token = VALUES(mp_access_token), 
+		payment_provider = VALUES(payment_provider),
+		encrypted_config = VALUES(encrypted_config),
 		status = VALUES(status), 
 		plan_type = VALUES(plan_type), 
 		verification_status = VALUES(verification_status),
 		monthly_usage_count = VALUES(monthly_usage_count)`
 	
 	_, err := r.db.ExecContext(ctx, query, 
-		t.ID, t.LegalName, t.CNPJ, t.MPAccessToken, t.ContactEmail, 
+		t.ID, t.LegalName, t.CNPJ, t.PaymentProvider, t.EncryptedConfig, t.ContactEmail, 
 		t.ContactPhone, t.Status, t.Plan, t.VerificationStatus, t.MonthlyUsageCount,
 	)
 	

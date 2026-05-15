@@ -19,6 +19,7 @@ type OrderHandler struct {
 	tenantRepo       ports.TenantRepository
 	tenantOnboarding *usecase.TenantOnboardingUseCase
 	publisher        ports.EventPublisher
+	encryption       *service.EncryptionService
 }
 
 func NewOrderHandler(
@@ -37,6 +38,10 @@ func NewOrderHandler(
 		publisher:        publisher,
 		tenantOnboarding: tenantOnboarding,
 	}
+}
+
+func (h *OrderHandler) SetEncryptionService(s *service.EncryptionService) {
+	h.encryption = s
 }
 
 type CreateOrderRequest struct {
@@ -182,13 +187,50 @@ func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Se o token for enviado, salvamos ele (em produção seria um fluxo de OAuth)
-	if req.MPAccessToken != "" {
-		tenant.MPAccessToken = req.MPAccessToken
-		_ = h.tenantRepo.Save(r.Context(), tenant)
+	RespondWithSuccess(w, r, http.StatusCreated, tenant)
+}
+
+type UpdateTenantConfigRequest struct {
+	Provider string                 `json:"provider"`
+	Settings map[string]interface{} `json:"settings"`
+}
+
+func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request) {
+	var req UpdateTenantConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
 	}
 
-	RespondWithSuccess(w, r, http.StatusCreated, tenant)
+	// 1. Recuperar Tenant (Em produção viria do Contexto/JWT)
+	// Para o MVP, estamos assumindo o fluxo de teste
+	tenantID := "default-tenant" 
+	tenant, err := h.tenantRepo.FindByID(r.Context(), tenantID)
+	if err != nil || tenant == nil {
+		RespondWithError(w, r, http.StatusNotFound, "Tenant not found")
+		return
+	}
+
+	// 2. Serializar Configurações
+	settingsJSON, _ := json.Marshal(req.Settings)
+
+	// 3. Criptografar
+	encrypted, err := h.encryption.Encrypt(string(settingsJSON))
+	if err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, "Failed to secure settings")
+		return
+	}
+
+	// 4. Salvar
+	tenant.PaymentProvider = req.Provider
+	tenant.EncryptedConfig = encrypted
+
+	if err := h.tenantRepo.Save(r.Context(), tenant); err != nil {
+		RespondWithError(w, r, http.StatusInternalServerError, "Failed to save config")
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "configured_and_encrypted"})
 }
 
 func (h *OrderHandler) Metrics() http.Handler {

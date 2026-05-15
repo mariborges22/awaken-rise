@@ -7,6 +7,7 @@ import { AppComponent } from './app.component';
 import { OrderComponent } from './components/order/order.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { OnboardingComponent } from './components/onboarding/onboarding.component';
+import { SettingsComponent } from './components/settings/settings.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
 
 @NgModule({
@@ -14,7 +15,8 @@ import { CorrelationIdInterceptor } from './interceptors/correlation-id.intercep
     AppComponent,
     OrderComponent,
     DashboardComponent,
-    OnboardingComponent
+    OnboardingComponent,
+    SettingsComponent
   ],
   imports: [
     BrowserModule,

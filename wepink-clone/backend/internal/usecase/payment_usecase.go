@@ -27,6 +27,7 @@ type PaymentUseCase struct {
 	publisher        ports.EventPublisher
 	gateway          ports.PaymentGateway
 	idempotency      *service.IdempotencyService
+	encryption       *service.EncryptionService
 }
 
 func NewPaymentUseCase(
@@ -37,6 +38,7 @@ func NewPaymentUseCase(
 	publisher ports.EventPublisher,
 	gateway ports.PaymentGateway,
 	idempotency *service.IdempotencyService,
+	encryption *service.EncryptionService,
 ) *PaymentUseCase {
 	return &PaymentUseCase{
 		paymentRepo:      paymentRepo,
@@ -46,6 +48,7 @@ func NewPaymentUseCase(
 		publisher:        publisher,
 		gateway:          gateway,
 		idempotency:      idempotency,
+		encryption:       encryption,
 	}
 }
 
@@ -106,7 +109,10 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	// 5. Create and Process Payment
 	payment := entity.NewPayment(input.PaymentID, input.OrderID, order.Total, input.IdempotencyKey)
 	
-	logger.Info(ctx, "Calling payment gateway", "amount", order.Total, "method", input.PaymentMethod)
+	logger.Info(ctx, "Calling payment gateway", "amount", order.Total, "method", input.PaymentMethod, "provider", tenant.PaymentProvider)
+
+	// Recuperar token real (Criptografado)
+	token, _ := uc.getTenantToken(tenant)
 
 	resp, err := uc.gateway.Process(ctx, ports.PaymentRequest{
 		Amount:        order.Total,
@@ -114,7 +120,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 		PaymentMethod: input.PaymentMethod,
 		Token:         input.CardToken,
 		Email:         input.BuyerEmail,
-		TenantToken:   tenant.MPAccessToken,
+		TenantToken:   token,
 	})
 
 	if err != nil {
@@ -237,8 +243,9 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 		return fmt.Errorf("tenant not found: %w", err)
 	}
 
-	// 3. Verify Status with Mercado Pago (Security)
-	resp, err := uc.gateway.GetPaymentStatus(ctx, payload.Data.ID, tenant.MPAccessToken)
+	// 3. Verify Status with Gateway (Security)
+	token, _ := uc.getTenantToken(tenant)
+	resp, err := uc.gateway.GetPaymentStatus(ctx, payload.Data.ID, token)
 	if err != nil {
 		return fmt.Errorf("failed to verify payment status with gateway: %w", err)
 	}
@@ -290,5 +297,26 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 	}
 
 	return nil
+}
+
+// Auxiliar para descriptografar tokens de gateway
+func (uc *PaymentUseCase) getTenantToken(tenant *entity.Tenant) (string, error) {
+	if tenant.EncryptedConfig == "" {
+		return "", errors.New("tenant has no payment configuration")
+	}
+
+	decryptedJSON, err := uc.encryption.Decrypt(tenant.EncryptedConfig)
+	if err != nil {
+		return "", err
+	}
+
+	var config struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal([]byte(decryptedJSON), &config); err != nil {
+		return "", err
+	}
+
+	return config.AccessToken, nil
 }
 
