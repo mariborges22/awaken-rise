@@ -2,13 +2,14 @@
   <!-- Header -->
   <header class="dashboard-header">
     <div class="welcome-text">
-      <h1>Bem-vindo, <span class="gradient-text">Lojista</span></h1>
-      <p>Sua operação está saudável e monitorada.</p>
+      <div class="hud-label">// SYSTEM_ACCESS_GRANTED</div>
+      <h1>Bem-vindo, <span class="gradient-text">Lojista</span> <span class="kanji-sub">マーチャント</span></h1>
+      <p>Sua operação está saudável e monitorada. <span class="tech-id">ID: 0x{{ todayOrders * 1234 | number:'4.0-0' }}</span></p>
     </div>
-    <div class="status-badge" [class.verified]="isVerified">
+    <div class="status-badge verified">
       <div class="pulse-ring"></div>
       <span class="status-icon">✓</span>
-      {{ isVerified ? 'CONTA VERIFICADA' : 'PENDENTE' }}
+      VERIFIED_ACCOUNT <span class="kanji-small">検証済み</span>
     </div>
   </header>
 
@@ -17,7 +18,7 @@
     <div class="glass-card stat-card">
       <div class="stat-icon purple">💰</div>
       <div class="stat-info">
-        <label>Vendas Hoje</label>
+        <label>Vendas Hoje <span class="kanji-label">今日の売上</span></label>
         <h3>R$ {{ todayRevenue | number:'1.2-2' }}</h3>
       </div>
       <div class="stat-trend positive">+12%</div>
@@ -26,7 +27,7 @@
     <div class="glass-card stat-card">
       <div class="stat-icon cyan">📦</div>
       <div class="stat-info">
-        <label>Pedidos</label>
+        <label>Pedidos <span class="kanji-label">注文</span></label>
         <h3>{{ todayOrders }}</h3>
       </div>
       <div class="stat-trend">+5</div>

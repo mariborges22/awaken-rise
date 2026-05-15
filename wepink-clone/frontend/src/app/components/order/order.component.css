@@ -13,6 +13,31 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
+.hud-corner {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--secondary-color);
+  opacity: 0.5;
+}
+
+.top-left { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+.top-right { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+
+.hud-tag {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.6rem;
+  color: var(--secondary-color);
+  letter-spacing: 2px;
+  margin-top: 10px;
+}
+
+.kanji-tiny {
+  font-size: 0.7rem;
+  opacity: 0.4;
+  margin-left: 5px;
+}
+
 .checkout-header {
   text-align: center;
   margin-bottom: 40px;
