@@ -290,14 +290,14 @@
                 "datasource": { "type": "prometheus", "uid": "Prometheus" },
                 "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] } } },
                 "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }, "id": 2, "options": { "orientation": "auto", "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
-                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "sum(awaken_payments_total{status=\"approved\"}) by (tenant_id)", "legendFormat": "Tenant: {{tenant_id}}", "range": true, "refId": "A" } ],
+                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "sum(awaken_payments_total{status=\"approved\"}) by (tenant_id)", "legendFormat": "Tenant: {{ '{{' }}tenant_id{{ '}}' }}", "range": true, "refId": "A" } ],
                 "title": "Vendas Aprovadas por Lojista", "type": "timeseries"
               },
               {
                 "datasource": { "type": "prometheus", "uid": "Prometheus" },
                 "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] } } },
                 "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }, "id": 4, "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
-                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "rate(awaken_payment_retries_total[1m])", "legendFormat": "Retries: {{tenant_id}}", "range": true, "refId": "A" } ],
+                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "rate(awaken_payment_retries_total[1m])", "legendFormat": "Retries: {{ '{{' }}tenant_id{{ '}}' }}", "range": true, "refId": "A" } ],
                 "title": "Taxa de Retries (Resiliência)", "type": "timeseries"
               }
             ],
