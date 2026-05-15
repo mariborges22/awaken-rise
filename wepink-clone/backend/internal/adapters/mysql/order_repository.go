@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 )
 
 type OrderRepository struct {
@@ -28,9 +29,12 @@ func (r *OrderRepository) getExecutor(ctx context.Context) interface {
 
 func (r *OrderRepository) Save(ctx context.Context, order *entity.Order) error {
 	exec := r.getExecutor(ctx)
+	
+	tenantID, _ := kernel.GetTenantID(ctx)
+	if tenantID != "" {
+		order.TenantID = tenantID
+	}
 
-	// Using UPSERT logic for simple Save (replace into or manual check)
-	// For MySQL, we can use INSERT ... ON DUPLICATE KEY UPDATE
 	query := `INSERT INTO orders (id, tenant_id, status, total, updated_at) 
 			  VALUES (?, ?, ?, ?, ?) 
 			  ON DUPLICATE KEY UPDATE status = VALUES(status), total = VALUES(total), updated_at = VALUES(updated_at)`
@@ -40,8 +44,7 @@ func (r *OrderRepository) Save(ctx context.Context, order *entity.Order) error {
 		return fmt.Errorf("failed to save order: %w", err)
 	}
 
-	// Save items - for simplicity, we delete and re-insert or just insert if new
-	// In a production system, this would be more optimized
+	// Save items
 	_, _ = exec.ExecContext(ctx, "DELETE FROM order_items WHERE order_id = ?", order.ID)
 	
 	for _, item := range order.Items {
@@ -57,9 +60,18 @@ func (r *OrderRepository) Save(ctx context.Context, order *entity.Order) error {
 
 func (r *OrderRepository) FindByID(ctx context.Context, id string) (*entity.Order, error) {
 	exec := r.getExecutor(ctx)
+	tenantID, _ := kernel.GetTenantID(ctx)
 	
+	query := "SELECT id, tenant_id, status, total, created_at, updated_at FROM orders WHERE id = ?"
+	args := []interface{}{id}
+
+	if tenantID != "" {
+		query += " AND tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
 	order := &entity.Order{}
-	err := exec.QueryRowContext(ctx, "SELECT id, tenant_id, status, total, created_at, updated_at FROM orders WHERE id = ?", id).
+	err := exec.QueryRowContext(ctx, query, args...).
 		Scan(&order.ID, &order.TenantID, &order.Status, &order.Total, &order.CreatedAt, &order.UpdatedAt)
 	
 	if err == sql.ErrNoRows {

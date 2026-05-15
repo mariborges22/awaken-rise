@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 	"github.com/awaken-rise/backend/internal/ports"
 )
 
@@ -22,7 +23,12 @@ func NewOrderUseCase(orderRepo ports.OrderRepository, publisher ports.EventPubli
 	}
 }
 
-func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, tenantID string, items []entity.OrderItem) (*entity.Order, error) {
+func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, items []entity.OrderItem) (*entity.Order, error) {
+	tenantID, _ := kernel.GetTenantID(ctx)
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id not found in context")
+	}
+
 	order := entity.NewOrder(id, tenantID, items)
 	
 	if err := uc.orderRepo.Save(ctx, order); err != nil {

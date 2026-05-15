@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 )
 
 type PaymentRepository struct {
@@ -43,9 +44,21 @@ func (r *PaymentRepository) Save(ctx context.Context, payment *entity.Payment) e
 
 func (r *PaymentRepository) FindByID(ctx context.Context, id string) (*entity.Payment, error) {
 	exec := r.getExecutor(ctx)
+	tenantID, _ := kernel.GetTenantID(ctx)
 	
+	query := `SELECT p.id, p.order_id, p.transaction_id, p.amount, p.status, p.idempotency_key, p.created_at, p.updated_at 
+			  FROM payments p 
+			  INNER JOIN orders o ON p.order_id = o.id 
+			  WHERE p.id = ?`
+	args := []interface{}{id}
+
+	if tenantID != "" {
+		query += " AND o.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
 	payment := &entity.Payment{}
-	err := exec.QueryRowContext(ctx, "SELECT id, order_id, transaction_id, amount, status, idempotency_key, created_at, updated_at FROM payments WHERE id = ?", id).
+	err := exec.QueryRowContext(ctx, query, args...).
 		Scan(&payment.ID, &payment.OrderID, &payment.TransactionID, &payment.Amount, &payment.Status, &payment.IdempotencyKey, &payment.CreatedAt, &payment.UpdatedAt)
 	
 	if err == sql.ErrNoRows {
@@ -60,8 +73,20 @@ func (r *PaymentRepository) FindByID(ctx context.Context, id string) (*entity.Pa
 
 func (r *PaymentRepository) FindByOrderID(ctx context.Context, orderID string) ([]*entity.Payment, error) {
 	exec := r.getExecutor(ctx)
+	tenantID, _ := kernel.GetTenantID(ctx)
 	
-	rows, err := exec.QueryContext(ctx, "SELECT id, order_id, transaction_id, amount, status, idempotency_key, created_at, updated_at FROM payments WHERE order_id = ?", orderID)
+	query := `SELECT p.id, p.order_id, p.transaction_id, p.amount, p.status, p.idempotency_key, p.created_at, p.updated_at 
+			  FROM payments p 
+			  INNER JOIN orders o ON p.order_id = o.id 
+			  WHERE p.order_id = ?`
+	args := []interface{}{orderID}
+
+	if tenantID != "" {
+		query += " AND o.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
+	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch payments for order: %w", err)
 	}
@@ -81,9 +106,21 @@ func (r *PaymentRepository) FindByOrderID(ctx context.Context, orderID string) (
 
 func (r *PaymentRepository) FindByIdempotencyKey(ctx context.Context, key string) (*entity.Payment, error) {
 	exec := r.getExecutor(ctx)
+	tenantID, _ := kernel.GetTenantID(ctx)
 	
+	query := `SELECT p.id, p.order_id, p.transaction_id, p.amount, p.status, p.idempotency_key, p.created_at, p.updated_at 
+			  FROM payments p 
+			  INNER JOIN orders o ON p.order_id = o.id 
+			  WHERE p.idempotency_key = ?`
+	args := []interface{}{key}
+
+	if tenantID != "" {
+		query += " AND o.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
 	payment := &entity.Payment{}
-	err := exec.QueryRowContext(ctx, "SELECT id, order_id, transaction_id, amount, status, idempotency_key, created_at, updated_at FROM payments WHERE idempotency_key = ?", key).
+	err := exec.QueryRowContext(ctx, query, args...).
 		Scan(&payment.ID, &payment.OrderID, &payment.TransactionID, &payment.Amount, &payment.Status, &payment.IdempotencyKey, &payment.CreatedAt, &payment.UpdatedAt)
 	
 	if err == sql.ErrNoRows {
@@ -98,9 +135,21 @@ func (r *PaymentRepository) FindByIdempotencyKey(ctx context.Context, key string
 
 func (r *PaymentRepository) FindByTransactionID(ctx context.Context, transactionID string) (*entity.Payment, error) {
 	exec := r.getExecutor(ctx)
+	tenantID, _ := kernel.GetTenantID(ctx)
 	
+	query := `SELECT p.id, p.order_id, p.transaction_id, p.amount, p.status, p.idempotency_key, p.created_at, p.updated_at 
+			  FROM payments p 
+			  INNER JOIN orders o ON p.order_id = o.id 
+			  WHERE p.transaction_id = ?`
+	args := []interface{}{transactionID}
+
+	if tenantID != "" {
+		query += " AND o.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
 	payment := &entity.Payment{}
-	err := exec.QueryRowContext(ctx, "SELECT id, order_id, transaction_id, amount, status, idempotency_key, created_at, updated_at FROM payments WHERE transaction_id = ?", transactionID).
+	err := exec.QueryRowContext(ctx, query, args...).
 		Scan(&payment.ID, &payment.OrderID, &payment.TransactionID, &payment.Amount, &payment.Status, &payment.IdempotencyKey, &payment.CreatedAt, &payment.UpdatedAt)
 	
 	if err == sql.ErrNoRows {

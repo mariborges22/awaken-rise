@@ -137,7 +137,7 @@ func (a *App) Start() error {
 
 	a.httpServer = &http.Server{
 		Addr:    ":8080",
-		Handler: httpAdapter.CorrelationIDMiddleware(mux),
+		Handler: httpAdapter.CorrelationIDMiddleware(httpAdapter.TenantIDMiddleware(mux)),
 	}
 
 	// Graceful Shutdown

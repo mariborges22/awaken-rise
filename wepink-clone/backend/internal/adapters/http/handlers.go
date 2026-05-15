@@ -57,11 +57,7 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TenantID == "" {
-		req.TenantID = "default-tenant" // Default fallback
-	}
-
-	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.TenantID, req.Items)
+	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.Items)
 	if err != nil {
 		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
 		return
