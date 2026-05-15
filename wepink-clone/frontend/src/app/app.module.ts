@@ -5,12 +5,14 @@ import { FormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
 import { OrderComponent } from './components/order/order.component';
+import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
 
 @NgModule({
   declarations: [
     AppComponent,
-    OrderComponent
+    OrderComponent,
+    DashboardComponent
   ],
   imports: [
     BrowserModule,

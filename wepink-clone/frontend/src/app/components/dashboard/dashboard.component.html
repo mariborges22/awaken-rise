@@ -1,0 +1,81 @@
+<div class="dashboard-container">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="welcome-text">
+      <h1>Bem-vindo, <span class="gradient-text">Lojista</span></h1>
+      <p>Sua operação está saudável e monitorada.</p>
+    </div>
+    <div class="status-badge" [class.verified]="isVerified">
+      <div class="pulse-ring"></div>
+      <span class="status-icon">✓</span>
+      {{ isVerified ? 'CONTA VERIFICADA' : 'PENDENTE' }}
+    </div>
+  </header>
+
+  <!-- KPI Cards -->
+  <div class="stats-grid">
+    <div class="glass-card stat-card">
+      <div class="stat-icon purple">💰</div>
+      <div class="stat-info">
+        <label>Vendas Hoje</label>
+        <h3>R$ {{ todayRevenue | number:'1.2-2' }}</h3>
+      </div>
+      <div class="stat-trend positive">+12%</div>
+    </div>
+
+    <div class="glass-card stat-card">
+      <div class="stat-icon cyan">📦</div>
+      <div class="stat-info">
+        <label>Pedidos</label>
+        <h3>{{ todayOrders }}</h3>
+      </div>
+      <div class="stat-trend">+5</div>
+    </div>
+
+    <div class="glass-card stat-card">
+      <div class="stat-icon orange">⚡</div>
+      <div class="stat-info">
+        <label>Taxa de Conversão</label>
+        <h3>{{ conversionRate }}%</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="content-grid">
+    <!-- Revenue Chart Placeholder -->
+    <div class="glass-card chart-container">
+      <div class="card-header">
+        <h2>Fluxo de Faturamento</h2>
+        <div class="time-filter">7 Dias</div>
+      </div>
+      <div class="fake-chart">
+        <!-- Aqui entrará o Chart.js futuramente, agora simulamos com gradientes -->
+        <div class="bar-chart-sim">
+          <div class="bar" style="height: 40%"></div>
+          <div class="bar" style="height: 60%"></div>
+          <div class="bar" style="height: 35%"></div>
+          <div class="bar active" style="height: 90%"></div>
+          <div class="bar" style="height: 55%"></div>
+          <div class="bar" style="height: 70%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan Usage -->
+    <div class="glass-card usage-container">
+      <h2>Uso do Plano <span class="plan-tag">{{ planType | uppercase }}</span></h2>
+      <div class="usage-meter">
+        <div class="meter-labels">
+          <span>{{ usageCount }} de {{ planLimit }} vendas</span>
+          <span>{{ (usageCount/planLimit)*100 | number:'1.0-0' }}%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" [style.width.%]="(usageCount/planLimit)*100"></div>
+        </div>
+        <p class="usage-note">Próximo upgrade: <strong>Plano Pro</strong> para vendas ilimitadas.</p>
+      </div>
+      <button class="upgrade-btn">UPGRADE AGORA</button>
+    </div>
+  </div>
+</div>
