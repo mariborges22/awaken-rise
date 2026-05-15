@@ -242,11 +242,14 @@
       debug:
         var: frontend_logs.stdout_lines
 
-    - name: Criar diretório de provisionamento do Grafana
+    - name: Criar diretórios de provisionamento do Grafana
       file:
-        path: /tmp/grafana/provisioning/datasources
+        path: "{{ item }}"
         state: directory
         mode: '0755'
+      loop:
+        - /tmp/grafana/provisioning/datasources
+        - /tmp/grafana/provisioning/dashboards
 
     - name: Configurar Data Source do Prometheus no Grafana
       copy:
@@ -259,6 +262,47 @@
               access: proxy
               url: http://prometheus:9090
               isDefault: true
+
+    - name: Configurar Provider de Dashboards no Grafana
+      copy:
+        dest: /tmp/grafana/provisioning/dashboards/provider.yml
+        content: |
+          apiVersion: 1
+          providers:
+            - name: 'Awaken Dashboards'
+              orgId: 1
+              folder: ''
+              type: file
+              disableDeletion: false
+              editable: true
+              options:
+                path: /etc/grafana/provisioning/dashboards
+
+    - name: Criar Dashboard do Awaken SaaS
+      copy:
+        dest: /tmp/grafana/provisioning/dashboards/awaken_main.json
+        content: |
+          {
+            "annotations": { "list": [ { "builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": true, "name": "Annotations & Alerts", "type": "dashboard" } ] },
+            "editable": true, "fiscalYearStartMonth": 0, "graphTooltip": 0, "id": null, "links": [], "liveNow": false,
+            "panels": [
+              {
+                "datasource": { "type": "prometheus", "uid": "Prometheus" },
+                "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] } } },
+                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }, "id": 2, "options": { "orientation": "auto", "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
+                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "sum(awaken_payments_total{status=\"approved\"}) by (tenant_id)", "legendFormat": "Tenant: {{tenant_id}}", "range": true, "refId": "A" } ],
+                "title": "Vendas Aprovadas por Lojista", "type": "timeseries"
+              },
+              {
+                "datasource": { "type": "prometheus", "uid": "Prometheus" },
+                "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 80 } ] } } },
+                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }, "id": 4, "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+                "targets": [ { "datasource": { "type": "prometheus", "uid": "Prometheus" }, "editorMode": "code", "expr": "rate(awaken_payment_retries_total[1m])", "legendFormat": "Retries: {{tenant_id}}", "range": true, "refId": "A" } ],
+                "title": "Taxa de Retries (Resiliência)", "type": "timeseries"
+              }
+            ],
+            "refresh": "5s", "schemaVersion": 37, "style": "dark", "tags": [], "templating": { "list": [] }, "time": { "from": "now-1h", "to": "now" }, "timepicker": {}, "timezone": "", "title": "Awaken SaaS - Torre de Controle", "uid": "awaken-main", "version": 1, "weekStart": ""
+          }
 
     - name: Rodar container do Grafana
       docker_container:
