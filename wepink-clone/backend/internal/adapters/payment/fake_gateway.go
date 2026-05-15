@@ -15,7 +15,6 @@ func NewFakePaymentGateway() *FakePaymentGateway {
 }
 
 func (g *FakePaymentGateway) Process(ctx context.Context, req ports.PaymentRequest) (*ports.PaymentGatewayResponse, error) {
-	amount := req.Amount
 	// Simulate external network latency
 	select {
 	case <-time.After(500 * time.Millisecond):
@@ -26,8 +25,8 @@ func (g *FakePaymentGateway) Process(ctx context.Context, req ports.PaymentReque
 	success := true
 	errorMessage := ""
 	
-	// Simulate some failures based on amount for testing
-	if int(amount*100)%10 == 9 {
+	// Simulate some failures based on amount cents for testing
+	if req.Amount.Amount()%10 == 9 {
 		success = false
 		errorMessage = "insufficient funds"
 	}

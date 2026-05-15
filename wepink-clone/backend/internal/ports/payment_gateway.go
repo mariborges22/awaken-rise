@@ -2,10 +2,11 @@ package ports
 
 import (
 	"context"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 )
 
 type PaymentRequest struct {
-	Amount        float64
+	Amount        kernel.Money
 	Description   string
 	PaymentMethod string // 'credit_card', 'pix', 'ticket'
 	Token         string // Token do cartão (se credit_card)

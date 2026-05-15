@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/awaken-rise/backend/internal/domain/entity"
+	"github.com/awaken-rise/backend/internal/domain/service"
 	"github.com/awaken-rise/backend/internal/ports"
 	"github.com/awaken-rise/backend/internal/usecase"
 )

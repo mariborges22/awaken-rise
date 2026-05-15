@@ -3,6 +3,8 @@ package entity
 import (
 	"errors"
 	"time"
+
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 )
 
 type OrderStatus string
@@ -20,28 +22,28 @@ var (
 )
 
 type OrderItem struct {
-	ProductID string  `json:"product_id"`
-	Quantity  int     `json:"quantity"`
-	Price     float64 `json:"price"`
+	ProductID string       `json:"product_id"`
+	Quantity  int          `json:"quantity"`
+	Price     kernel.Money `json:"price"`
 }
 
 type Order struct {
-	ID        string      `json:"id"`
-	TenantID  string      `json:"tenant_id"`
-	Status    OrderStatus `json:"status"`
-	Items     []OrderItem `json:"items"`
-	Total     float64     `json:"total"`
-	CreatedAt time.Time   `json:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at"`
+	kernel.AggregateRoot
+	ID        string       `json:"id"`
+	TenantID  string       `json:"tenant_id"`
+	Status    OrderStatus  `json:"status"`
+	Items     []OrderItem  `json:"items"`
+	Total     kernel.Money `json:"total"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
 }
 
 func NewOrder(id string, tenantID string, items []OrderItem) *Order {
-	var total float64
+	total := kernel.NewBRL(0)
 	for _, item := range items {
-		if item.Price < 0 || item.Quantity <= 0 {
-			continue // Ou poderíamos retornar um erro aqui
-		}
-		total += item.Price * float64(item.Quantity)
+		// Multiplicação de centavos
+		itemTotal := item.Price.Multiply(int64(item.Quantity))
+		total, _ = total.Add(itemTotal)
 	}
 
 	return &Order{
@@ -56,12 +58,10 @@ func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 }
 
 func (o *Order) RecalculateTotal() {
-	var total float64
+	total := kernel.NewBRL(0)
 	for _, item := range o.Items {
-		if item.Price < 0 || item.Quantity <= 0 {
-			continue
-		}
-		total += item.Price * float64(item.Quantity)
+		itemTotal := item.Price.Multiply(int64(item.Quantity))
+		total, _ = total.Add(itemTotal)
 	}
 	o.Total = total
 }
@@ -75,6 +75,10 @@ func (o *Order) Confirm() error {
 	}
 	o.Status = OrderConfirmed
 	o.UpdatedAt = time.Now()
+	
+	// Exemplo de registro de evento de domínio
+	// o.AddEvent(NewOrderConfirmedEvent(o.ID))
+	
 	return nil
 }
 

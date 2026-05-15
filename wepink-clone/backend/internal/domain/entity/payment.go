@@ -3,6 +3,8 @@ package entity
 import (
 	"errors"
 	"time"
+
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 )
 
 type PaymentStatus string
@@ -19,17 +21,18 @@ var (
 )
 
 type Payment struct {
+	kernel.AggregateRoot
 	ID             string        `json:"id"`
 	OrderID        string        `json:"order_id"`
 	TransactionID  string        `json:"transaction_id"`
-	Amount         float64       `json:"amount"`
+	Amount         kernel.Money  `json:"amount"`
 	Status         PaymentStatus `json:"status"`
 	IdempotencyKey string        `json:"idempotency_key"`
 	CreatedAt      time.Time     `json:"created_at"`
 	UpdatedAt      time.Time     `json:"updated_at"`
 }
 
-func NewPayment(id, orderID string, amount float64, idempotencyKey string) *Payment {
+func NewPayment(id, orderID string, amount kernel.Money, idempotencyKey string) *Payment {
 	return &Payment{
 		ID:             id,
 		OrderID:        orderID,

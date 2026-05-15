@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"time"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
+)
 
 type Event struct {
 	ID            string      `json:"event_id"`
@@ -11,17 +14,17 @@ type Event struct {
 }
 
 type OrderCreatedPayload struct {
-	OrderID  string  `json:"order_id"`
-	TenantID string  `json:"tenant_id"`
-	Total    float64 `json:"total"`
+	OrderID  string       `json:"order_id"`
+	TenantID string       `json:"tenant_id"`
+	Total    kernel.Money `json:"total"`
 }
 
 type PaymentApprovedPayload struct {
-	PaymentID      string  `json:"payment_id"`
-	OrderID        string  `json:"order_id"`
-	TransactionID  string  `json:"transaction_id"`
-	Amount         float64 `json:"amount"`
-	IdempotencyKey string  `json:"idempotency_key"`
+	PaymentID      string       `json:"payment_id"`
+	OrderID        string       `json:"order_id"`
+	TransactionID  string       `json:"transaction_id"`
+	Amount         kernel.Money `json:"amount"`
+	IdempotencyKey string       `json:"idempotency_key"`
 }
 
 type PaymentFailedPayload struct {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 	"github.com/awaken-rise/backend/internal/ports"
 )
 
@@ -24,12 +25,12 @@ func NewMercadoPagoAdapter() *MercadoPagoAdapter {
 }
 
 type MPPaymentRequest struct {
-	TransactionAmount float64 `json:"transaction_amount"`
-	Description       string  `json:"description"`
-	PaymentMethodID   string  `json:"payment_method_id"`
-	Payer             MPPayer `json:"payer"`
-	Token             string  `json:"token,omitempty"`
-	Installments      int     `json:"installments,omitempty"`
+	TransactionAmount kernel.Money `json:"transaction_amount"`
+	Description       string       `json:"description"`
+	PaymentMethodID   string       `json:"payment_method_id"`
+	Payer             MPPayer      `json:"payer"`
+	Token             string       `json:"token,omitempty"`
+	Installments      int          `json:"installments,omitempty"`
 }
 
 type MPPayer struct {
