@@ -12,12 +12,14 @@ import (
 type OrderUseCase struct {
 	orderRepo  ports.OrderRepository
 	dispatcher ports.EventDispatcher
+	txManager  ports.TransactionManager
 }
 
-func NewOrderUseCase(orderRepo ports.OrderRepository, dispatcher ports.EventDispatcher) *OrderUseCase {
+func NewOrderUseCase(orderRepo ports.OrderRepository, dispatcher ports.EventDispatcher, txManager ports.TransactionManager) *OrderUseCase {
 	return &OrderUseCase{
 		orderRepo:  orderRepo,
 		dispatcher: dispatcher,
+		txManager:  txManager,
 	}
 }
 
@@ -29,14 +31,22 @@ func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, items []enti
 
 	order := entity.NewOrder(id, tenantID, items)
 	
-	if err := uc.orderRepo.Save(ctx, order); err != nil {
-		return nil, fmt.Errorf("failed to save order: %w", err)
-	}
+	err := uc.txManager.Execute(ctx, func(txCtx context.Context) error {
+		if err := uc.orderRepo.Save(txCtx, order); err != nil {
+			return fmt.Errorf("failed to save order: %w", err)
+		}
 
-	// Dispatch collected events
-	if len(order.Events()) > 0 {
-		_ = uc.dispatcher.Dispatch(ctx, order.Events())
-		order.ClearEvents()
+		if len(order.Events()) > 0 {
+			if err := uc.dispatcher.Dispatch(txCtx, order.Events()); err != nil {
+				return fmt.Errorf("failed to dispatch events: %w", err)
+			}
+			order.ClearEvents()
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 	
 	return order, nil

@@ -3,8 +3,6 @@ package ports
 import (
 	"context"
 	"time"
-
-	"github.com/awaken-rise/backend/internal/domain/entity"
 )
 
 type OutboxEvent struct {

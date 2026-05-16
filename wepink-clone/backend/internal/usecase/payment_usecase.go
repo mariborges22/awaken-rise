@@ -147,6 +147,15 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 				}
 			}
 		}
+
+		// 8. Publish Collected Events (from Aggregate)
+		if len(payment.Events()) > 0 {
+			if err := uc.dispatcher.Dispatch(ctx, payment.Events()); err != nil {
+				return fmt.Errorf("failed to dispatch events: %w", err)
+			}
+			payment.ClearEvents()
+		}
+
 		return nil
 	})
 
@@ -158,12 +167,6 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	// 7. Store Idempotency Result
 	if input.IdempotencyKey != "" {
 		_ = uc.idempotency.Save(ctx, input.IdempotencyKey, payment)
-	}
-
-	// 8. Publish Collected Events (from Aggregate)
-	if len(payment.Events()) > 0 {
-		_ = uc.dispatcher.Dispatch(ctx, payment.Events())
-		payment.ClearEvents()
 	}
 
 	metrics.PaymentsTotal.WithLabelValues(order.TenantID, string(payment.Status)).Inc()
@@ -238,17 +241,23 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 			
 			// Incrementar uso do plano
 			tenant.MonthlyUsageCount++
-			return uc.tenantRepo.Save(ctx, tenant)
+			if err := uc.tenantRepo.Save(ctx, tenant); err != nil {
+				return err
+			}
+
+			// 5. Publish Collected Events (from Aggregate)
+			if len(payment.Events()) > 0 {
+				if err := uc.dispatcher.Dispatch(ctx, payment.Events()); err != nil {
+					return fmt.Errorf("failed to dispatch events: %w", err)
+				}
+				payment.ClearEvents()
+			}
+
+			return nil
 		})
 
 		if err != nil {
 			return err
-		}
-
-		// 5. Publish Collected Events (from Aggregate)
-		if len(payment.Events()) > 0 {
-			_ = uc.dispatcher.Dispatch(ctx, payment.Events())
-			payment.ClearEvents()
 		}
 		
 		// Record metrics

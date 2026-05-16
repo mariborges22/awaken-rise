@@ -21,6 +21,8 @@ import (
 	redisAdapter "github.com/awaken-rise/backend/internal/adapters/redis"
 	"github.com/awaken-rise/backend/internal/database"
 	"github.com/awaken-rise/backend/internal/domain/service"
+	"github.com/awaken-rise/backend/internal/pkg/events"
+	"github.com/awaken-rise/backend/internal/pkg/workers"
 	"github.com/awaken-rise/backend/internal/ports"
 	"github.com/awaken-rise/backend/internal/usecase"
 )
@@ -92,13 +94,11 @@ func (a *App) Start() error {
 	}
 	encryptionService, _ := service.NewEncryptionService(encKey)
 
-	var eventDispatcher ports.EventDispatcher
-	if rabbitAdapter != nil {
-		eventDispatcher = rabbitmq.NewDomainEventDispatcher(rabbitAdapter)
-	}
+	outboxRepo := mysql.NewOutboxRepository(db)
+	eventDispatcher := events.NewOutboxEventDispatcher(outboxRepo)
 
 	// 5. Use Cases
-	orderUC := usecase.NewOrderUseCase(orderRepo, eventDispatcher)
+	orderUC := usecase.NewOrderUseCase(orderRepo, eventDispatcher, txManager)
 	tenantOnboardingUC := usecase.NewTenantOnboardingUseCase(tenantRepo)
 	paymentUC := usecase.NewPaymentUseCase(
 		paymentRepo, 
@@ -111,8 +111,11 @@ func (a *App) Start() error {
 		encryptionService,
 	)
 
-	// 6. Consumers
+	// 6. Consumers and Workers
 	if rabbitAdapter != nil {
+		relayWorker := workers.NewOutboxRelayWorker(outboxRepo, rabbitAdapter, 5*time.Second, 100)
+		go relayWorker.Start(ctx)
+
 		paymentConsumer := rabbitmq.NewPaymentConsumer(
 			rabbitAdapter.Channel(),
 			paymentUC,
