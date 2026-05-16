@@ -3,9 +3,11 @@ package http
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/awaken-rise/backend/internal/domain/kernel"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/awaken-rise/backend/internal/domain/entity"
 	"github.com/awaken-rise/backend/internal/domain/service"
@@ -59,7 +61,7 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.Items)
 	if err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -69,13 +71,13 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		RespondWithError(w, r, http.StatusBadRequest, "Missing order id")
+		HandleError(w, r, fmt.Errorf("%w: missing order id", kernel.ErrInvalidInput))
 		return
 	}
 
 	order, err := h.orderUseCase.GetOrder(r.Context(), id)
 	if err != nil {
-		RespondWithError(w, r, http.StatusNotFound, "Order not found")
+		HandleError(w, r, err)
 		return
 	}
 
@@ -91,7 +93,7 @@ type ProcessPaymentRequest struct {
 func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	orderID := r.PathValue("orderId")
 	if orderID == "" {
-		RespondWithError(w, r, http.StatusBadRequest, "Missing order id")
+		HandleError(w, r, fmt.Errorf("%w: missing order id", kernel.ErrInvalidInput))
 		return
 	}
 
@@ -113,7 +115,7 @@ func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 
 	payment, err := h.paymentUseCase.ProcessPayment(r.Context(), input)
 	if err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -141,14 +143,14 @@ func (h *OrderHandler) Ready(w http.ResponseWriter, r *http.Request) {
 func (h *OrderHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	var payload usecase.WebhookPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		RespondWithError(w, r, http.StatusBadRequest, "Invalid webhook payload")
+		HandleError(w, r, fmt.Errorf("%w: invalid webhook payload", kernel.ErrInvalidInput))
 		return
 	}
 
 	// Security Note: Validate X-Signature or x-correlation-id headers here based on MercadoPago docs
 
 	if err := h.paymentUseCase.HandleWebhook(r.Context(), payload); err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -180,7 +182,7 @@ func (h *OrderHandler) RegisterTenant(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantOnboarding.Register(r.Context(), input)
 	if err != nil {
-		RespondWithError(w, r, http.StatusBadRequest, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -204,7 +206,7 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 	tenantID := "default-tenant" 
 	tenant, err := h.tenantRepo.FindByID(r.Context(), tenantID)
 	if err != nil || tenant == nil {
-		RespondWithError(w, r, http.StatusNotFound, "Tenant not found")
+		HandleError(w, r, fmt.Errorf("%w: tenant not found", kernel.ErrNotFound))
 		return
 	}
 
@@ -214,7 +216,7 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 	// 3. Criptografar
 	encrypted, err := h.encryption.Encrypt(string(settingsJSON))
 	if err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, "Failed to secure settings")
+		HandleError(w, r, fmt.Errorf("%w: failed to secure settings", kernel.ErrInternal))
 		return
 	}
 
@@ -223,7 +225,7 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 	tenant.EncryptedConfig = encrypted
 
 	if err := h.tenantRepo.Save(r.Context(), tenant); err != nil {
-		RespondWithError(w, r, http.StatusInternalServerError, "Failed to save config")
+		HandleError(w, r, fmt.Errorf("%w: failed to save config", kernel.ErrInternal))
 		return
 	}
 
