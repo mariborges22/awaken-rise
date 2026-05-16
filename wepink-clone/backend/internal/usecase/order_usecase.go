@@ -3,23 +3,21 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/awaken-rise/backend/internal/domain/entity"
 	"github.com/awaken-rise/backend/internal/domain/kernel"
 	"github.com/awaken-rise/backend/internal/ports"
 )
 
 type OrderUseCase struct {
-	orderRepo ports.OrderRepository
-	publisher ports.EventPublisher
+	orderRepo  ports.OrderRepository
+	dispatcher ports.EventDispatcher
 }
 
-func NewOrderUseCase(orderRepo ports.OrderRepository, publisher ports.EventPublisher) *OrderUseCase {
+func NewOrderUseCase(orderRepo ports.OrderRepository, dispatcher ports.EventDispatcher) *OrderUseCase {
 	return &OrderUseCase{
-		orderRepo: orderRepo,
-		publisher: publisher,
+		orderRepo:  orderRepo,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -35,17 +33,11 @@ func (uc *OrderUseCase) CreateOrder(ctx context.Context, id string, items []enti
 		return nil, fmt.Errorf("failed to save order: %w", err)
 	}
 
-	// Publish event
-	event := entity.Event{
-		ID:        uuid.New().String(),
-		Type:      "order.created",
-		Timestamp: time.Now(),
-		Payload: entity.OrderCreatedPayload{
-			OrderID: order.ID,
-			Total:   order.Total,
-		},
+	// Dispatch collected events
+	if len(order.Events()) > 0 {
+		_ = uc.dispatcher.Dispatch(ctx, order.Events())
+		order.ClearEvents()
 	}
-	_ = uc.publisher.Publish(ctx, "orders_exchange", "order.created", event)
 	
 	return order, nil
 }

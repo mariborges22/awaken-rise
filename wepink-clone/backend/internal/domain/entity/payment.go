@@ -53,13 +53,32 @@ func (p *Payment) Approve() error {
 	}
 	p.Status = PaymentApproved
 	p.UpdatedAt = time.Now()
+
+	event := PaymentApprovedPayload{
+		BaseDomainEvent: kernel.NewBaseDomainEvent(),
+		PaymentID:       p.ID,
+		OrderID:         p.OrderID,
+		TransactionID:   p.TransactionID,
+		Amount:          p.Amount,
+		IdempotencyKey:  p.IdempotencyKey,
+	}
+	p.AddEvent(event)
+
 	return nil
 }
 
-func (p *Payment) Fail() {
+func (p *Payment) Fail(reason string) {
 	if p.Status == PaymentApproved {
 		return // Cannot fail an approved payment in this context
 	}
 	p.Status = PaymentFailed
 	p.UpdatedAt = time.Now()
+
+	event := PaymentFailedPayload{
+		BaseDomainEvent: kernel.NewBaseDomainEvent(),
+		PaymentID:       p.ID,
+		OrderID:         p.OrderID,
+		Reason:          reason,
+	}
+	p.AddEvent(event)
 }

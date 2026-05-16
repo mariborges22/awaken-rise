@@ -46,7 +46,7 @@ func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 		total, _ = total.Add(itemTotal)
 	}
 
-	return &Order{
+	order := &Order{
 		ID:        id,
 		TenantID:  tenantID,
 		Status:    OrderPending,
@@ -55,6 +55,16 @@ func NewOrder(id string, tenantID string, items []OrderItem) *Order {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
+
+	eventPayload := OrderCreatedPayload{
+		BaseDomainEvent: kernel.NewBaseDomainEvent(),
+		OrderID:         id,
+		TenantID:        tenantID,
+		Total:           total,
+	}
+	order.AddEvent(eventPayload)
+
+	return order
 }
 
 func (o *Order) RecalculateTotal() {

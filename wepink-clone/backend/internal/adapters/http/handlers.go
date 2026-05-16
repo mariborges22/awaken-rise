@@ -19,7 +19,7 @@ type OrderHandler struct {
 	db               *sql.DB
 	tenantRepo       ports.TenantRepository
 	tenantOnboarding *usecase.TenantOnboardingUseCase
-	publisher        ports.EventPublisher
+	dispatcher       ports.EventDispatcher
 	encryption       *service.EncryptionService
 }
 
@@ -28,7 +28,7 @@ func NewOrderHandler(
 	paymentUseCase *usecase.PaymentUseCase,
 	db *sql.DB,
 	tenantRepo ports.TenantRepository,
-	publisher ports.EventPublisher,
+	dispatcher ports.EventDispatcher,
 	tenantOnboarding *usecase.TenantOnboardingUseCase,
 ) *OrderHandler {
 	return &OrderHandler{
@@ -36,7 +36,7 @@ func NewOrderHandler(
 		paymentUseCase:   paymentUseCase,
 		db:               db,
 		tenantRepo:       tenantRepo,
-		publisher:        publisher,
+		dispatcher:       dispatcher,
 		tenantOnboarding: tenantOnboarding,
 	}
 }
@@ -130,8 +130,8 @@ func (h *OrderHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.publisher == nil {
-		RespondWithError(w, r, http.StatusServiceUnavailable, "RabbitMQ not ready")
+	if h.dispatcher == nil {
+		RespondWithError(w, r, http.StatusServiceUnavailable, "RabbitMQ Dispatcher not ready")
 		return
 	}
 

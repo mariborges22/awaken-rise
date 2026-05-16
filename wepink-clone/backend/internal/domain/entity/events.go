@@ -14,12 +14,18 @@ type Event struct {
 }
 
 type OrderCreatedPayload struct {
+	kernel.BaseDomainEvent
 	OrderID  string       `json:"order_id"`
 	TenantID string       `json:"tenant_id"`
 	Total    kernel.Money `json:"total"`
 }
 
+func (e OrderCreatedPayload) EventName() string {
+	return "order.created"
+}
+
 type PaymentApprovedPayload struct {
+	kernel.BaseDomainEvent
 	PaymentID      string       `json:"payment_id"`
 	OrderID        string       `json:"order_id"`
 	TransactionID  string       `json:"transaction_id"`
@@ -27,8 +33,18 @@ type PaymentApprovedPayload struct {
 	IdempotencyKey string       `json:"idempotency_key"`
 }
 
+func (e PaymentApprovedPayload) EventName() string {
+	return "payment.approved"
+}
+
 type PaymentFailedPayload struct {
+	kernel.BaseDomainEvent
 	PaymentID string `json:"payment_id"`
 	OrderID   string `json:"order_id"`
 	Reason    string `json:"reason"`
 }
+
+func (e PaymentFailedPayload) EventName() string {
+	return "payment.failed"
+}
+

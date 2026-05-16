@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
-	"github.com/google/uuid"
 
 	"github.com/awaken-rise/backend/internal/domain/entity"
 	"github.com/awaken-rise/backend/internal/domain/service"
@@ -25,7 +23,7 @@ type PaymentUseCase struct {
 	orderRepo        ports.OrderRepository
 	tenantRepo       ports.TenantRepository
 	txManager        ports.TransactionManager
-	publisher        ports.EventPublisher
+	dispatcher       ports.EventDispatcher
 	gateway          ports.PaymentGateway
 	idempotency      *service.IdempotencyService
 	encryption       *service.EncryptionService
@@ -36,7 +34,7 @@ func NewPaymentUseCase(
 	orderRepo ports.OrderRepository,
 	tenantRepo ports.TenantRepository,
 	txManager ports.TransactionManager,
-	publisher ports.EventPublisher,
+	dispatcher ports.EventDispatcher,
 	gateway ports.PaymentGateway,
 	idempotency *service.IdempotencyService,
 	encryption *service.EncryptionService,
@@ -46,7 +44,7 @@ func NewPaymentUseCase(
 		orderRepo:        orderRepo,
 		tenantRepo:       tenantRepo,
 		txManager:        txManager,
-		publisher:        publisher,
+		dispatcher:       dispatcher,
 		gateway:          gateway,
 		idempotency:      idempotency,
 		encryption:       encryption,
@@ -126,14 +124,14 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 
 	if err != nil {
 		logger.Error(ctx, "Gateway error", "error", err)
-		payment.Fail()
+		payment.Fail(err.Error())
 	} else if resp.Success {
 		logger.Info(ctx, "Payment approved by gateway", "transaction_id", resp.TransactionID)
 		_ = payment.Approve()
 		payment.TransactionID = resp.TransactionID
 	} else {
 		logger.Warn(ctx, "Payment rejected by gateway", "status", resp.Status, "error", resp.ErrorMessage)
-		payment.Fail()
+		payment.Fail(resp.ErrorMessage)
 	}
 
 	// 6. Persistence and State Consistency (Atomic)
@@ -162,41 +160,11 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 		_ = uc.idempotency.Save(ctx, input.IdempotencyKey, payment)
 	}
 
-	// 8. Publish Response Events with CorrelationID
-	event := entity.Event{
-		ID:            uuid.New().String(),
-		CorrelationID: correlationID,
-		Timestamp:     time.Now(),
+	// 8. Publish Collected Events (from Aggregate)
+	if len(payment.Events()) > 0 {
+		_ = uc.dispatcher.Dispatch(ctx, payment.Events())
+		payment.ClearEvents()
 	}
-
-	if payment.Status == entity.PaymentApproved {
-		event.Type = "payment.approved"
-		event.Payload = entity.PaymentApprovedPayload{
-			PaymentID:      payment.ID,
-			OrderID:        payment.OrderID,
-			TransactionID:  payment.TransactionID,
-			Amount:         payment.Amount,
-			IdempotencyKey: input.IdempotencyKey,
-		}
-	} else {
-		event.Type = "payment.failed"
-		event.Payload = entity.PaymentFailedPayload{
-			PaymentID: payment.ID,
-			OrderID:   payment.OrderID,
-			Reason:    "payment rejected",
-		}
-	}
-
-	// Publish with a simple retry logic
-	go func(ev entity.Event) {
-		for i := 0; i < 3; i++ {
-			if err := uc.publisher.Publish(context.Background(), "payments_exchange", ev.Type, ev); err == nil {
-				return
-			}
-			time.Sleep(time.Second * time.Duration(i+1))
-		}
-		logger.Error(ctx, "Failed to publish event after retries", "event_id", ev.ID)
-	}(event)
 
 	metrics.PaymentsTotal.WithLabelValues(order.TenantID, string(payment.Status)).Inc()
 
@@ -212,7 +180,6 @@ type WebhookPayload struct {
 }
 
 func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayload) error {
-	correlationID, _ := ctx.Value(logger.CorrelationIDKey).(string)
 	
 	logger.Info(ctx, "Received webhook from Mercado Pago", 
 		"action", payload.Action, 
@@ -278,20 +245,11 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 			return err
 		}
 
-		// 5. Publish Event
-		event := entity.Event{
-			ID:            uuid.New().String(),
-			CorrelationID: correlationID,
-			Type:          "payment.approved",
-			Timestamp:     time.Now(),
-			Payload: entity.PaymentApprovedPayload{
-				PaymentID:     payment.ID,
-				OrderID:       payment.OrderID,
-				TransactionID: payment.TransactionID,
-				Amount:        payment.Amount,
-			},
+		// 5. Publish Collected Events (from Aggregate)
+		if len(payment.Events()) > 0 {
+			_ = uc.dispatcher.Dispatch(ctx, payment.Events())
+			payment.ClearEvents()
 		}
-		_ = uc.publisher.Publish(ctx, "payments_exchange", event.Type, event)
 		
 		// Record metrics
 		metrics.PaymentsTotal.WithLabelValues(order.TenantID, "approved").Inc()

@@ -21,6 +21,7 @@ import (
 	redisAdapter "github.com/awaken-rise/backend/internal/adapters/redis"
 	"github.com/awaken-rise/backend/internal/database"
 	"github.com/awaken-rise/backend/internal/domain/service"
+	"github.com/awaken-rise/backend/internal/ports"
 	"github.com/awaken-rise/backend/internal/usecase"
 )
 
@@ -91,15 +92,20 @@ func (a *App) Start() error {
 	}
 	encryptionService, _ := service.NewEncryptionService(encKey)
 
+	var eventDispatcher ports.EventDispatcher
+	if rabbitAdapter != nil {
+		eventDispatcher = rabbitmq.NewDomainEventDispatcher(rabbitAdapter)
+	}
+
 	// 5. Use Cases
-	orderUC := usecase.NewOrderUseCase(orderRepo, rabbitAdapter)
+	orderUC := usecase.NewOrderUseCase(orderRepo, eventDispatcher)
 	tenantOnboardingUC := usecase.NewTenantOnboardingUseCase(tenantRepo)
 	paymentUC := usecase.NewPaymentUseCase(
 		paymentRepo, 
 		orderRepo, 
 		tenantRepo,
 		txManager, 
-		rabbitAdapter, 
+		eventDispatcher, 
 		paymentGateway,
 		idempotencyService,
 		encryptionService,
@@ -122,7 +128,7 @@ func (a *App) Start() error {
 	}
 
 	// 7. HTTP Server
-	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, rabbitAdapter, tenantOnboardingUC)
+	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, eventDispatcher, tenantOnboardingUC)
 	handlerHTTP.SetEncryptionService(encryptionService)
 
 	mux := http.NewServeMux()
