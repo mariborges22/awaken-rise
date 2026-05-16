@@ -1,16 +1,17 @@
-<!-- Barra de Navegação Simples para Testes -->
+<!-- Barra de Navegação Header (Opcional, depende do design, mas o Angular Router cuida das views agora) -->
 <nav class="test-nav">
-  <button (click)="view = 'dashboard'" [class.active]="view === 'dashboard'">PAINEL LOJISTA</button>
-  <button (click)="view = 'onboarding'" [class.active]="view === 'onboarding'">ONBOARDING</button>
-  <button (click)="view = 'settings'" [class.active]="view === 'settings'">CONFIGURAÇÕES</button>
-  <button (click)="view = 'checkout'" [class.active]="view === 'checkout'">CHECKOUT</button>
+  <!-- Rotas do Lojista -->
+  <a routerLink="/saas/dashboard" routerLinkActive="active">PAINEL LOJISTA</a>
+  <a routerLink="/saas/onboarding" routerLinkActive="active">ONBOARDING</a>
+  <a routerLink="/saas/settings" routerLinkActive="active">CONFIGURAÇÕES</a>
+  
+  <!-- Rotas Públicas (Exemplo com ID genérico) -->
+  <a routerLink="/store/123" routerLinkActive="active">CHECKOUT</a>
 </nav>
 
 <main>
-  <app-dashboard *ngIf="view === 'dashboard'"></app-dashboard>
-  <app-onboarding *ngIf="view === 'onboarding'"></app-onboarding>
-  <app-settings *ngIf="view === 'settings'"></app-settings>
-  <app-order *ngIf="view === 'checkout'"></app-order>
+  <!-- O Angular Router vai injetar os componentes aqui -->
+  <router-outlet></router-outlet>
 </main>
 
 <style>
@@ -19,28 +20,29 @@
     justify-content: center;
     gap: 20px;
     padding: 20px;
-    background: rgba(0,0,0,0.3);
+    background: var(--bg-surface);
     backdrop-filter: blur(10px);
     position: sticky;
     top: 0;
     z-index: 1000;
   }
-  .test-nav button {
+  .test-nav a {
     background: none;
     border: 1px solid rgba(255,255,255,0.1);
-    color: #888;
+    color: var(--color-text-muted);
     padding: 8px 20px;
     border-radius: 50px;
     cursor: pointer;
     font-weight: 600;
     font-size: 0.7rem;
     letter-spacing: 1px;
+    text-decoration: none;
     transition: all 0.3s;
   }
-  .test-nav button.active {
-    background: var(--primary-color);
+  .test-nav a.active {
+    background: var(--color-primary);
     color: white;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 15px var(--accent-glow);
+    border-color: var(--color-primary);
+    box-shadow: var(--neon-shadow-primary);
   }
 </style>

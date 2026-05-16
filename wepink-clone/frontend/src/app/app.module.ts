@@ -9,6 +9,9 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { OnboardingComponent } from './components/onboarding/onboarding.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
+import { TenantInterceptor } from './interceptors/tenant.interceptor';
+import { ErrorInterceptor } from './interceptors/error.interceptor';
+import { AppRoutingModule } from './app-routing.module';
 
 @NgModule({
   declarations: [
@@ -20,11 +23,14 @@ import { CorrelationIdInterceptor } from './interceptors/correlation-id.intercep
   ],
   imports: [
     BrowserModule,
+    AppRoutingModule,
     HttpClientModule,
     FormsModule
   ],
   providers: [
-    { provide: HTTP_INTERCEPTORS, useClass: CorrelationIdInterceptor, multi: true }
+    { provide: HTTP_INTERCEPTORS, useClass: CorrelationIdInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: TenantInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true }
   ],
   bootstrap: [AppComponent]
 })
