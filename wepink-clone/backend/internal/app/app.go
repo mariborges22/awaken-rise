@@ -23,7 +23,6 @@ import (
 	"github.com/awaken-rise/backend/internal/domain/service"
 	"github.com/awaken-rise/backend/internal/pkg/events"
 	"github.com/awaken-rise/backend/internal/pkg/workers"
-	"github.com/awaken-rise/backend/internal/ports"
 	"github.com/awaken-rise/backend/internal/usecase"
 )
 
