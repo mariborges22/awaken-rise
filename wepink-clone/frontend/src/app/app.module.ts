@@ -12,6 +12,7 @@ import { CorrelationIdInterceptor } from './interceptors/correlation-id.intercep
 import { TenantInterceptor } from './interceptors/tenant.interceptor';
 import { ErrorInterceptor } from './interceptors/error.interceptor';
 import { AppRoutingModule } from './app-routing.module';
+import { LandingPageComponent } from './components/landing-page/landing-page.component';
 
 @NgModule({
   declarations: [
@@ -19,7 +20,8 @@ import { AppRoutingModule } from './app-routing.module';
     OrderComponent,
     DashboardComponent,
     OnboardingComponent,
-    SettingsComponent
+    SettingsComponent,
+    LandingPageComponent
   ],
   imports: [
     BrowserModule,

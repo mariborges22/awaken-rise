@@ -1,0 +1,130 @@
+<div class="landing-container">
+  
+  <!-- HERO SECTION -->
+  <header class="hero">
+    <div class="hero-content">
+      <div class="badge">V 2.0.0 — NEXT GEN SAAS</div>
+      <h1 class="glitch" data-text="A Plataforma de">A Plataforma de <br><span class="highlight">E-commerce do Futuro</span></h1>
+      <p class="subtitle">
+        Construída com engenharia de elite e design Cyber-Anime. 
+        Garantimos <strong>zero perda de vendas</strong> e uma conversão brutal para marcas audaciosas.
+      </p>
+      <div class="hero-actions">
+        <a routerLink="/saas/onboarding" class="neon-btn primary">Criar Minha Loja Neon</a>
+        <a href="#features" class="neon-btn secondary">Explorar Tecnologia</a>
+      </div>
+    </div>
+    
+    <!-- Decorações Visuais -->
+    <div class="cyber-grid"></div>
+    <div class="glow-orb primary-orb"></div>
+    <div class="glow-orb secondary-orb"></div>
+  </header>
+
+  <!-- FEATURES SECTION -->
+  <section id="features" class="features-section">
+    <h2 class="section-title">Engenharia Bancária.<br>Estética Indomável.</h2>
+    <div class="features-grid">
+      
+      <div class="glass-panel feature-card">
+        <div class="icon-wrapper primary-glow">
+          <i class="fas fa-shield-alt"></i> <!-- Ícone placeholder, assumindo FontAwesome ou só CSS -->
+          <span class="icon-text">🛡️</span>
+        </div>
+        <h3>Zero Perda de Vendas</h3>
+        <p>Utilizamos o <strong>Outbox Pattern</strong> e <strong>Idempotência</strong>. Mesmo que a internet ou o gateway caiam, sua transação está garantida e salva no banco de dados isolado.</p>
+      </div>
+
+      <div class="glass-panel feature-card">
+        <div class="icon-wrapper secondary-glow">
+          <span class="icon-text">✨</span>
+        </div>
+        <h3>Design Cyber-Anime</h3>
+        <p>Vitrines e Checkouts desenhados com <em>Glassmorphism</em>, Dark Mode nativo e micro-animações. Foque na geração Z, Gamers e tech-lovers.</p>
+      </div>
+
+      <div class="glass-panel feature-card">
+        <div class="icon-wrapper accent-glow">
+          <span class="icon-text">🔒</span>
+        </div>
+        <h3>Segurança Multi-Tenant</h3>
+        <p>Seus dados e de seus clientes são 100% isolados. Criptografia AES-256 ponta a ponta para proteger suas chaves do Mercado Pago e Stripe.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PRICING SECTION -->
+  <section id="pricing" class="pricing-section">
+    <h2 class="section-title">Cresça sem amarras.</h2>
+    <p class="section-desc">Pague apenas se vender, ou fixe seu custo quando escalar.</p>
+    
+    <div class="pricing-grid">
+      
+      <!-- Starter -->
+      <div class="glass-panel price-card">
+        <div class="plan-header">
+          <h3>Starter</h3>
+          <div class="price">R$ 0<span>/mês</span></div>
+          <p class="fee">+ 2.5% por venda</p>
+        </div>
+        <ul class="features-list">
+          <li>Até 1.000 pedidos/mês</li>
+          <li>1 Gateway de Pagamento</li>
+          <li>Vitrine Cyber-Anime</li>
+          <li class="disabled">Dashboard em Tempo Real</li>
+        </ul>
+        <a routerLink="/saas/onboarding" class="neon-btn secondary full-width">Começar Grátis</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="glass-panel price-card popular">
+        <div class="popular-badge">MAIS ESCOLHIDO</div>
+        <div class="plan-header">
+          <h3>Pro</h3>
+          <div class="price">R$ 199<span>/mês</span></div>
+          <p class="fee">0% taxa de plataforma</p>
+        </div>
+        <ul class="features-list">
+          <li>Pedidos Ilimitados</li>
+          <li>Multi-Gateway com Fallback</li>
+          <li>Dashboard de Vendas em Tempo Real</li>
+          <li>Webhooks e Customização</li>
+        </ul>
+        <a routerLink="/saas/onboarding" class="neon-btn primary full-width">Assinar Pro</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="glass-panel price-card enterprise">
+        <div class="plan-header">
+          <h3>Enterprise</h3>
+          <div class="price">Sob Consulta</div>
+          <p class="fee">Para gigantes do e-commerce</p>
+        </div>
+        <ul class="features-list">
+          <li><strong>AI & Machine Learning</strong></li>
+          <li>Previsão de Vendas & Churn</li>
+          <li>Chatbot Inteligente IA</li>
+          <li>Infraestrutura Dedicada 99.9% SLA</li>
+        </ul>
+        <button (click)="openWhatsApp()" class="neon-btn secondary full-width">Falar com Consultor</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CTA FINAL & FOOTER -->
+  <footer class="footer">
+    <div class="cta-box glass-panel">
+      <h2>Pronto para revolucionar seu E-commerce?</h2>
+      <p>Ainda tem dúvidas de qual plano escolher ou como migrar?</p>
+      <button (click)="openWhatsApp()" class="neon-btn whatsapp-btn">
+        <span>💬</span> Falar no WhatsApp
+      </button>
+    </div>
+    <div class="copyright">
+      <p>&copy; 2026 Awaken Rise SaaS. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+
+</div>

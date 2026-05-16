@@ -4,6 +4,7 @@ import { OnboardingComponent } from './components/onboarding/onboarding.componen
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { OrderComponent } from './components/order/order.component';
+import { LandingPageComponent } from './components/landing-page/landing-page.component';
 
 const routes: Routes = [
   // Public Storefront (Vitrine e Checkout)
@@ -15,8 +16,8 @@ const routes: Routes = [
   { path: 'saas/settings', component: SettingsComponent },
 
   // Default Redirect
-  { path: '', redirectTo: '/saas/onboarding', pathMatch: 'full' },
-  { path: '**', redirectTo: '/saas/onboarding' }
+  { path: '', component: LandingPageComponent, pathMatch: 'full' },
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
