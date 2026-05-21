@@ -9,6 +9,8 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.5.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	golang.org/x/crypto v0.31.0
 )
 
 require (

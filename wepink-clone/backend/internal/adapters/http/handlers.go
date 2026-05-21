@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/awaken-rise/backend/internal/domain/kernel"
@@ -23,6 +24,9 @@ type OrderHandler struct {
 	tenantOnboarding *usecase.TenantOnboardingUseCase
 	dispatcher       ports.EventDispatcher
 	encryption       *service.EncryptionService
+	authUseCase      *usecase.AuthUseCase
+	productUseCase   *usecase.ProductUseCase
+	billingUseCase   *usecase.BillingUseCase
 }
 
 func NewOrderHandler(
@@ -47,9 +51,78 @@ func (h *OrderHandler) SetEncryptionService(s *service.EncryptionService) {
 	h.encryption = s
 }
 
+func (h *OrderHandler) SetAuthUseCase(s *usecase.AuthUseCase) {
+	h.authUseCase = s
+}
+
+func (h *OrderHandler) SetProductUseCase(s *usecase.ProductUseCase) {
+	h.productUseCase = s
+}
+
+func (h *OrderHandler) SetBillingUseCase(s *usecase.BillingUseCase) {
+	h.billingUseCase = s
+}
+
+type RegisterUserRequest struct {
+	TenantID string `json:"tenant_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (h *OrderHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
+	var req RegisterUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	input := usecase.RegisterUserInput{
+		TenantID: req.TenantID,
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+		Role:     "admin",
+	}
+
+	user, err := h.authUseCase.Register(r.Context(), input)
+	if err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusCreated, user)
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (h *OrderHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	input := usecase.LoginInput{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	out, err := h.authUseCase.Login(r.Context(), input)
+	if err != nil {
+		RespondWithError(w, r, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, out)
+}
+
 type CreateOrderRequest struct {
-	TenantID string             `json:"tenant_id"`
-	Items    []entity.OrderItem `json:"items"`
+	TenantID string                         `json:"tenant_id"`
+	Items    []usecase.CreateOrderInputItem `json:"items"`
 }
 
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -59,13 +132,44 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.orderUseCase.CreateOrder(r.Context(), uuid.New().String(), req.Items)
+	ctx := r.Context()
+	if req.TenantID != "" {
+		ctx = kernel.WithTenantID(ctx, req.TenantID)
+	}
+
+	order, err := h.orderUseCase.CreateOrder(ctx, uuid.New().String(), req.Items)
 	if err != nil {
 		HandleError(w, r, err)
 		return
 	}
 
 	RespondWithSuccess(w, r, http.StatusCreated, order)
+}
+
+func (h *OrderHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+	var req usecase.CreateProductInput
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	product, err := h.productUseCase.CreateProduct(r.Context(), req)
+	if err != nil {
+		HandleError(w, r, err)
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusCreated, product)
+}
+
+func (h *OrderHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
+	products, err := h.productUseCase.ListProducts(r.Context())
+	if err != nil {
+		HandleError(w, r, err)
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, products)
 }
 
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
@@ -201,9 +305,11 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// 1. Recuperar Tenant (Em produção viria do Contexto/JWT)
-	// Para o MVP, estamos assumindo o fluxo de teste
-	tenantID := "default-tenant" 
+	// 1. Recuperar Tenant do Contexto (X-Tenant-ID header) com fallback seguro
+	tenantID, ok := kernel.GetTenantID(r.Context())
+	if !ok || tenantID == "" {
+		tenantID = "default-tenant"
+	}
 	tenant, err := h.tenantRepo.FindByID(r.Context(), tenantID)
 	if err != nil || tenant == nil {
 		HandleError(w, r, fmt.Errorf("%w: tenant not found", kernel.ErrNotFound))
@@ -232,7 +338,80 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "configured_and_encrypted"})
 }
 
+func (h *OrderHandler) GetTenantConfig(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := kernel.GetTenantID(r.Context())
+	if !ok || tenantID == "" {
+		tenantID = "default-tenant"
+	}
+
+	tenant, err := h.tenantRepo.FindByID(r.Context(), tenantID)
+	if err != nil {
+		HandleError(w, r, err)
+		return
+	}
+	if tenant == nil {
+		RespondWithError(w, r, http.StatusNotFound, "Tenant not found")
+		return
+	}
+
+	var settings map[string]interface{}
+	if tenant.EncryptedConfig != "" {
+		if h.encryption == nil {
+			HandleError(w, r, fmt.Errorf("%w: encryption service not initialized", kernel.ErrInternal))
+			return
+		}
+		
+		decrypted, err := h.encryption.Decrypt(tenant.EncryptedConfig)
+		if err != nil {
+			HandleError(w, r, fmt.Errorf("%w: failed to decrypt settings", kernel.ErrInternal))
+			return
+		}
+
+		if err := json.Unmarshal([]byte(decrypted), &settings); err != nil {
+			HandleError(w, r, fmt.Errorf("%w: failed to parse settings", kernel.ErrInternal))
+			return
+		}
+
+		// Mascaramento de dados sensíveis para segurança e compliance
+		for k, v := range settings {
+			if k == "access_token" {
+				if strVal, ok := v.(string); ok && len(strVal) > 10 {
+					settings[k] = strVal[:8] + "..." + strVal[len(strVal)-4:]
+				} else {
+					settings[k] = "******"
+				}
+			}
+		}
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, map[string]interface{}{
+		"provider": tenant.PaymentProvider,
+		"settings": settings,
+	})
+}
+
 func (h *OrderHandler) Metrics() http.Handler {
 	return promhttp.Handler()
 }
+
+func (h *OrderHandler) BillingWebhook(w http.ResponseWriter, r *http.Request) {
+	var req usecase.BillingWebhookInput
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, r, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.TenantID == "" {
+		RespondWithError(w, r, http.StatusBadRequest, "Missing tenant_id")
+		return
+	}
+
+	if err := h.billingUseCase.HandleSubscriptionUpdate(r.Context(), req); err != nil {
+		HandleError(w, r, err)
+		return
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "billing_updated"})
+}
+
 

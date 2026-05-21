@@ -23,6 +23,20 @@ type TenantRepository interface {
 	Save(ctx context.Context, tenant *entity.Tenant) error
 }
 
+type UserRepository interface {
+	FindByID(ctx context.Context, id string) (*entity.User, error)
+	FindByEmail(ctx context.Context, email string) (*entity.User, error)
+	Save(ctx context.Context, user *entity.User) error
+}
+
+type ProductRepository interface {
+	FindByID(ctx context.Context, id string) (*entity.Product, error)
+	FindByIDs(ctx context.Context, ids []string) ([]*entity.Product, error)
+	Save(ctx context.Context, product *entity.Product) error
+	SaveBatch(ctx context.Context, products []*entity.Product) error
+	ListByTenant(ctx context.Context, tenantID string) ([]*entity.Product, error)
+}
+
 type TransactionManager interface {
 	Execute(ctx context.Context, fn func(ctx context.Context) error) error
 }

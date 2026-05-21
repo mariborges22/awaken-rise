@@ -82,6 +82,8 @@ func (a *App) Start() error {
 	processedEventRepo := mysql.NewProcessedEventRepository(db)
 	txManager := mysql.NewTransactionManager(db)
 	tenantRepo := mysql.NewTenantRepository(db)
+	userRepo := mysql.NewUserRepository(db)
+	productRepo := mysql.NewProductRepository(db)
 	idempotencyStore := redisAdapter.NewIdempotencyStore(a.redis)
 	paymentGateway := payment.NewMercadoPagoAdapter()
 	idempotencyService := service.NewIdempotencyService(idempotencyStore, paymentRepo)
@@ -96,8 +98,15 @@ func (a *App) Start() error {
 	outboxRepo := mysql.NewOutboxRepository(db)
 	eventDispatcher := events.NewOutboxEventDispatcher(outboxRepo)
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "awaken-rise-jwt-secret-key-32-bytes!"
+	}
+	authUC := usecase.NewAuthUseCase(userRepo, jwtSecret)
+	productUC := usecase.NewProductUseCase(productRepo)
+
 	// 5. Use Cases
-	orderUC := usecase.NewOrderUseCase(orderRepo, eventDispatcher, txManager)
+	orderUC := usecase.NewOrderUseCase(orderRepo, productRepo, eventDispatcher, txManager)
 	tenantOnboardingUC := usecase.NewTenantOnboardingUseCase(tenantRepo)
 	paymentUC := usecase.NewPaymentUseCase(
 		paymentRepo, 
@@ -132,6 +141,13 @@ func (a *App) Start() error {
 	// 7. HTTP Server
 	handlerHTTP := httpAdapter.NewOrderHandler(orderUC, paymentUC, db, tenantRepo, eventDispatcher, tenantOnboardingUC)
 	handlerHTTP.SetEncryptionService(encryptionService)
+	handlerHTTP.SetAuthUseCase(authUC)
+	handlerHTTP.SetProductUseCase(productUC)
+
+	billingUC := usecase.NewBillingUseCase(tenantRepo)
+	handlerHTTP.SetBillingUseCase(billingUC)
+
+	authMiddleware := httpAdapter.NewAuthMiddleware(jwtSecret)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
@@ -141,7 +157,13 @@ func (a *App) Start() error {
 	mux.HandleFunc("GET /orders/{id}", handlerHTTP.GetOrder)
 	mux.HandleFunc("POST /payments/{orderId}", handlerHTTP.ProcessPayment)
 	mux.HandleFunc("POST /tenants", handlerHTTP.RegisterTenant)
-	mux.HandleFunc("PUT /tenants/me/config", handlerHTTP.UpdateTenantConfig)
+	mux.HandleFunc("POST /auth/register", handlerHTTP.RegisterUser)
+	mux.HandleFunc("POST /auth/login", handlerHTTP.Login)
+	mux.HandleFunc("POST /webhooks/billing", handlerHTTP.BillingWebhook)
+	mux.Handle("GET /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.GetTenantConfig)))
+	mux.Handle("PUT /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.UpdateTenantConfig)))
+	mux.Handle("POST /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.CreateProduct)))
+	mux.Handle("GET /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.ListProducts)))
 
 	a.httpServer = &http.Server{
 		Addr:    ":8080",

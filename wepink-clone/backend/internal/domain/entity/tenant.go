@@ -30,6 +30,9 @@ type Tenant struct {
 	Plan               PlanType
 	VerificationStatus VerificationStatus
 	MonthlyUsageCount  int
+	SubscriptionID     string
+	SubscriptionStatus string             // "active", "trialing", "cancelled", "suspended"
+	SubscriptionExpiresAt time.Time
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -37,6 +40,16 @@ type Tenant struct {
 func (t *Tenant) CanProcessSale() bool {
 	if t.Status != "active" || t.VerificationStatus != VerificationApproved {
 		return false
+	}
+
+	// Regra de Assinatura SaaS (Billing Control)
+	if t.SubscriptionStatus != "" {
+		if t.SubscriptionStatus != "active" && t.SubscriptionStatus != "trialing" {
+			return false
+		}
+		if !t.SubscriptionExpiresAt.IsZero() && t.SubscriptionExpiresAt.Before(time.Now()) {
+			return false
+		}
 	}
 
 	// Regra de Negócio: Limites de Plano
