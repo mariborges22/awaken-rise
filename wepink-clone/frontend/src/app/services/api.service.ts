@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Order, Payment, ApiResponse, OrderItem } from '../models/api.models';
+import { Order, Payment, ApiResponse, OrderItem, Product } from '../models/api.models';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +10,10 @@ export class ApiService {
   private baseUrl = '/api';
 
   constructor(private http: HttpClient) {}
+
+  getProducts(): Observable<ApiResponse<Product[]>> {
+    return this.http.get<ApiResponse<Product[]>>(`${this.baseUrl}/products`);
+  }
 
   createOrder(items: OrderItem[]): Observable<ApiResponse<Order>> {
     return this.http.post<ApiResponse<Order>>(`${this.baseUrl}/orders`, { items });

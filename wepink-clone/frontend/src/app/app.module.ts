@@ -10,6 +10,7 @@ import { OnboardingComponent } from './components/onboarding/onboarding.componen
 import { SettingsComponent } from './components/settings/settings.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
 import { TenantInterceptor } from './interceptors/tenant.interceptor';
+import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { ErrorInterceptor } from './interceptors/error.interceptor';
 import { AppRoutingModule } from './app-routing.module';
 import { LandingPageComponent } from './components/landing-page/landing-page.component';
@@ -32,6 +33,7 @@ import { LandingPageComponent } from './components/landing-page/landing-page.com
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: CorrelationIdInterceptor, multi: true },
     { provide: HTTP_INTERCEPTORS, useClass: TenantInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true }
   ],
   bootstrap: [AppComponent]

@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { TenantService } from '../../core/services/tenant.service';
 
 @Component({
   selector: 'app-onboarding',
@@ -18,7 +20,11 @@ export class OnboardingComponent {
   loading: boolean = false;
   successMessage: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private tenantService: TenantService,
+    private router: Router
+  ) {}
 
   validateCNPJ() {
     // Remove caracteres não numéricos
@@ -37,8 +43,9 @@ export class OnboardingComponent {
     if (!this.isCnpjValid) return;
 
     this.loading = true;
+    const tenantId = 'tnt_' + Math.random().toString(36).substring(7);
     const payload = {
-      tenant_id: 'tnt_' + Math.random().toString(36).substring(7),
+      tenant_id: tenantId,
       legal_name: this.merchantData.legalName,
       cnpj: this.merchantData.cnpj.replace(/[^\d]/g, ''),
       contact_email: this.merchantData.contactEmail,
@@ -49,6 +56,7 @@ export class OnboardingComponent {
     this.http.post('/api/tenants', payload).subscribe({
       next: (res) => {
         this.loading = false;
+        this.tenantService.setTenant(tenantId); // Grava o Tenant ID no estado e localStorage
         this.successMessage = true;
       },
       error: (err) => {
@@ -59,7 +67,6 @@ export class OnboardingComponent {
   }
 
   goToDashboard() {
-    // Simula a navegação para o dashboard
-    window.location.reload(); 
+    this.router.navigate(['/saas/dashboard']);
   }
 }

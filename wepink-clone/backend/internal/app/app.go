@@ -163,7 +163,7 @@ func (a *App) Start() error {
 	mux.Handle("GET /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.GetTenantConfig)))
 	mux.Handle("PUT /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.UpdateTenantConfig)))
 	mux.Handle("POST /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.CreateProduct)))
-	mux.Handle("GET /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.ListProducts)))
+	mux.HandleFunc("GET /products", handlerHTTP.ListProducts)
 
 	a.httpServer = &http.Server{
 		Addr:    ":8080",

@@ -16,7 +16,30 @@ export class SettingsComponent implements OnInit {
   constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
-    // Aqui buscaríamos o status atual do banco
+    this.loadConfig();
+  }
+
+  loadConfig() {
+    this.loading = true;
+    this.http.get<any>('/api/tenants/me/config').subscribe({
+      next: (res) => {
+        this.loading = false;
+        if (res && res.data) {
+          const config = res.data;
+          this.selectedProvider = config.provider || 'mercadopago';
+          if (config.settings && config.settings.access_token) {
+            this.isMpConnected = true;
+            this.tempToken = config.settings.access_token;
+          } else {
+            this.isMpConnected = false;
+          }
+        }
+      },
+      error: (err) => {
+        this.loading = false;
+        console.error('Falha ao carregar configurações do inquilino:', err);
+      }
+    });
   }
 
   selectProvider(id: string) {

@@ -8,19 +8,45 @@
       <h1>Finalizar <span class="gradient-text">Pedido</span></h1>
     </div>
 
-    <!-- Seção de Busca/Criação -->
-    <div class="action-box">
-      <div class="input-group">
-        <input type="text" [(ngModel)]="orderIdInput" placeholder="ID do Pedido (ex: ord_123)">
-        <button class="btn-secondary" (click)="lookupOrder()" [disabled]="loading">
-          <span *ngIf="!loading">CONSULTAR</span>
+    <!-- Vitrine de Produtos -->
+    <div class="storefront-section" *ngIf="!currentOrder">
+      <h2>Catálogo</h2>
+      
+      <div *ngIf="loading && products.length === 0" class="loader"></div>
+      
+      <div class="products-grid">
+        <div class="product-card glass-card" *ngFor="let product of products">
+          <div class="product-info">
+            <span class="product-name">{{ product.name }}</span>
+            <span class="product-price">R$ {{ product.price | number:'1.2-2' }}</span>
+          </div>
+          <div class="product-actions">
+            <span class="stock" [class.low-stock]="product.stock < 5">Estoque: {{ product.stock }}</span>
+            <button class="btn-secondary add-cart-btn" 
+                    (click)="addToCart(product)" 
+                    [disabled]="product.stock === 0 || cart[product.id] >= product.stock">
+              + <span *ngIf="cart[product.id]">{{ cart[product.id] }} no Carrinho</span>
+              <span *ngIf="!cart[product.id]">Carrinho</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="checkout-action" *ngIf="products.length > 0">
+        <button class="btn-primary full-width" (click)="createOrder()" [disabled]="loading || getCartItems().length === 0">
+          <span *ngIf="!loading">FINALIZAR COMPRA</span>
           <span *ngIf="loading" class="loader"></span>
         </button>
       </div>
-      <div class="divider"><span>OU</span></div>
-      <button class="btn-primary full-width" (click)="createSampleOrder()" [disabled]="loading">
-        CRIAR NOVO PEDIDO DE TESTE
-      </button>
+      
+      <div class="divider"><span>OU CONSULTAR PEDIDO</span></div>
+      <div class="input-group">
+        <input type="text" [(ngModel)]="orderIdInput" placeholder="ID do Pedido (ex: ord_123)">
+        <button class="btn-secondary" (click)="lookupOrder()" [disabled]="loading">
+          <span *ngIf="!loading">BUSCAR</span>
+          <span *ngIf="loading" class="loader"></span>
+        </button>
+      </div>
     </div>
 
     <!-- Detalhes do Pedido -->

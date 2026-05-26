@@ -1,31 +1,72 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../../services/api.service';
-import { Order, OrderItem } from '../../models/api.models';
+import { Order, OrderItem, Product } from '../../models/api.models';
 
 @Component({
   selector: 'app-order',
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.css']
 })
-export class OrderComponent {
+export class OrderComponent implements OnInit {
   orderIdInput: string = '';
   currentOrder: Order | null = null;
   errorMessage: string = '';
   loading: boolean = false;
+  
+  products: Product[] = [];
+  cart: { [productId: string]: number } = {};
 
   constructor(private apiService: ApiService) {}
 
-  createSampleOrder() {
-    this.loading = true;
-    const items: OrderItem[] = [
-      { product_id: 'prod-1', quantity: 2, price: 50.0 },
-      { product_id: 'prod-2', quantity: 1, price: 100.0 }
-    ];
+  ngOnInit() {
+    this.loadProducts();
+  }
 
+  loadProducts() {
+    this.loading = true;
+    this.apiService.getProducts().subscribe({
+      next: (res) => {
+        this.products = res.data || [];
+        this.loading = false;
+      },
+      error: (err) => {
+        this.errorMessage = 'Failed to load products';
+        this.loading = false;
+      }
+    });
+  }
+
+  addToCart(product: Product) {
+    if (!this.cart[product.id]) {
+      this.cart[product.id] = 0;
+    }
+    if (this.cart[product.id] < product.stock) {
+      this.cart[product.id]++;
+    }
+  }
+
+  getCartItems(): OrderItem[] {
+    return Object.keys(this.cart)
+      .filter(id => this.cart[id] > 0)
+      .map(id => ({
+        product_id: id,
+        quantity: this.cart[id]
+      }));
+  }
+
+  createOrder() {
+    const items = this.getCartItems();
+    if (items.length === 0) {
+      this.errorMessage = 'Cart is empty';
+      return;
+    }
+
+    this.loading = true;
     this.apiService.createOrder(items).subscribe({
       next: (res) => {
         this.currentOrder = res.data!;
         this.orderIdInput = this.currentOrder.id;
+        this.cart = {}; // Clear cart
         this.loading = false;
       },
       error: (err) => {

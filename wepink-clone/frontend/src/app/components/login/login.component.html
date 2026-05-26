@@ -1,0 +1,37 @@
+<div class="login-wrapper">
+  <div class="glass-card login-card">
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    
+    <div class="login-header">
+      <div class="hud-label">// LOJISTA_AUTHENTICATION_SEQUENCE</div>
+      <h1>Acesso do <span class="gradient-text">Lojista</span> <span class="kanji-sub">加盟店ログイン</span></h1>
+      <p>Gerencie seu e-commerce com a nossa infraestrutura integrada.</p>
+    </div>
+
+    <form class="login-form" (ngSubmit)="submit()">
+      <div class="form-section">
+        <label><span class="kanji-tiny">メール</span> E-MAIL DO ADMINISTRADOR</label>
+        <input type="email" [(ngModel)]="credentials.email" name="email" placeholder="admin@sualoja.com" required>
+      </div>
+
+      <div class="form-section">
+        <label><span class="kanji-tiny">パスワード</span> SENHA</label>
+        <input type="password" [(ngModel)]="credentials.password" name="password" placeholder="••••••••" required>
+      </div>
+
+      <div *ngIf="errorMessage" class="error-text animate-fade-in">
+        {{ errorMessage }}
+      </div>
+
+      <button type="submit" class="btn-launch" [disabled]="loading">
+        <span *ngIf="!loading">AUTENTICAR</span>
+        <span *ngIf="loading" class="loader"></span>
+      </button>
+
+      <div class="helper-text-container">
+        <p class="helper-text">Não possui uma conta? <a routerLink="/saas/onboarding" class="gradient-link">Registrar Inquilino</a></p>
+      </div>
+    </form>
+  </div>
+</div>
