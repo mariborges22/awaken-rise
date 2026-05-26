@@ -26,8 +26,18 @@
       </div>
 
       <div class="form-section">
-        <label><span class="kanji-tiny">メール</span> E-MAIL DE CONTATO</label>
+        <label><span class="kanji-tiny">メール</span> E-MAIL DO ADMINISTRADOR (CONTATO)</label>
         <input type="email" [(ngModel)]="merchantData.contactEmail" name="contactEmail" placeholder="admin@sualoja.com" required>
+      </div>
+
+      <div class="form-section">
+        <label><span class="kanji-tiny">名前</span> NOME DO ADMINISTRADOR</label>
+        <input type="text" [(ngModel)]="merchantData.adminName" name="adminName" placeholder="Ex: Maria Silva" required>
+      </div>
+
+      <div class="form-section">
+        <label><span class="kanji-tiny">パスワード</span> SENHA DE ACESSO</label>
+        <input type="password" [(ngModel)]="merchantData.adminPassword" name="adminPassword" placeholder="••••••••" required>
       </div>
 
       <button type="submit" class="btn-launch" [disabled]="!isCnpjValid || loading">

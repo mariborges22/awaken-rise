@@ -24,6 +24,17 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
+  register(tenantId: string, name: string, email: string, password: string, role: string = 'admin'): Observable<ApiResponse<User>> {
+    const payload = {
+      tenant_id: tenantId,
+      name,
+      email,
+      password,
+      role
+    };
+    return this.http.post<ApiResponse<User>>(`${this.baseUrl}/register`, payload);
+  }
+
   login(email: string, password: string): Observable<ApiResponse<LoginResponse>> {
     return this.http.post<ApiResponse<LoginResponse>>(`${this.baseUrl}/login`, { email, password }).pipe(
       tap(res => {

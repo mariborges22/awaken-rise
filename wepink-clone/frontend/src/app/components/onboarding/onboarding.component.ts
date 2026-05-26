@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { TenantService } from '../../core/services/tenant.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-onboarding',
@@ -13,7 +14,9 @@ export class OnboardingComponent {
     legalName: '',
     cnpj: '',
     contactEmail: '',
-    plan: 'starter'
+    plan: 'starter',
+    adminName: '',
+    adminPassword: ''
   };
 
   isCnpjValid: boolean = false;
@@ -23,28 +26,28 @@ export class OnboardingComponent {
   constructor(
     private http: HttpClient,
     private tenantService: TenantService,
+    private authService: AuthService,
     private router: Router
   ) {}
 
   validateCNPJ() {
-    // Remove caracteres não numéricos
     const cleanCnpj = this.merchantData.cnpj.replace(/[^\d]/g, '');
-    
-    // Validação básica de tamanho (14 dígitos)
     this.isCnpjValid = cleanCnpj.length === 14;
     
-    // Formatação visual automática (opcional, mas melhora UX)
     if (cleanCnpj.length === 14) {
       this.merchantData.cnpj = cleanCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
     }
   }
 
   submit() {
-    if (!this.isCnpjValid) return;
+    if (!this.isCnpjValid || !this.merchantData.adminName || !this.merchantData.adminPassword) {
+      alert('Preencha todos os campos corretamente.');
+      return;
+    }
 
     this.loading = true;
     const tenantId = 'tnt_' + Math.random().toString(36).substring(7);
-    const payload = {
+    const tenantPayload = {
       tenant_id: tenantId,
       legal_name: this.merchantData.legalName,
       cnpj: this.merchantData.cnpj.replace(/[^\d]/g, ''),
@@ -52,16 +55,42 @@ export class OnboardingComponent {
       plan: this.merchantData.plan
     };
 
-    // Chamada real para o Backend
-    this.http.post('/api/tenants', payload).subscribe({
+    // 1. Create Tenant
+    this.http.post('/api/tenants', tenantPayload).subscribe({
       next: (res) => {
-        this.loading = false;
-        this.tenantService.setTenant(tenantId); // Grava o Tenant ID no estado e localStorage
-        this.successMessage = true;
+        this.tenantService.setTenant(tenantId);
+        
+        // 2. Register Admin User
+        this.authService.register(
+          tenantId,
+          this.merchantData.adminName,
+          this.merchantData.contactEmail,
+          this.merchantData.adminPassword,
+          'admin'
+        ).subscribe({
+          next: () => {
+            // 3. Auto Login
+            this.authService.login(this.merchantData.contactEmail, this.merchantData.adminPassword).subscribe({
+              next: () => {
+                this.loading = false;
+                this.successMessage = true;
+              },
+              error: () => {
+                this.loading = false;
+                alert('Conta criada, mas falha no login automático. Faça login manualmente.');
+                this.router.navigate(['/saas/login']);
+              }
+            });
+          },
+          error: (err) => {
+            this.loading = false;
+            alert('Loja criada, mas falha ao criar conta de administrador.');
+          }
+        });
       },
       error: (err) => {
         this.loading = false;
-        alert('Erro ao registrar sistema. Verifique os dados ou a conexão.');
+        alert('Erro ao registrar a loja. Verifique os dados ou a conexão.');
       }
     });
   }
