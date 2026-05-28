@@ -2,14 +2,16 @@ package http
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/awaken-rise/backend/internal/domain/kernel"
+	"github.com/awaken-rise/backend/internal/pkg/logger"
 )
 
-// HandleError maps domain errors to standard HTTP responses.
+// HandleError mapeia erros de domínio para respostas HTTP padronizadas.
+// Erros 500 são sempre logados de forma estruturada para triagem em produção.
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	// 1. Identify the error type and map to HTTP status code
 	statusCode := http.StatusInternalServerError
 	message := err.Error()
 
@@ -26,11 +28,24 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 		statusCode = http.StatusConflict
 	}
 
-	// For internal server errors, we might want to hide details in production.
-	// if statusCode == http.StatusInternalServerError && isProduction() {
-	// 	message = "Internal Server Error"
-	// }
+	// Erros internos (500) são logados de forma estruturada e separada dos logs de acesso.
+	// O correlation_id permite rastrear o erro ponta-a-ponta no sistema.
+	if statusCode == http.StatusInternalServerError {
+		correlationID, _ := r.Context().Value(logger.CorrelationIDKey).(string)
+		tenantID, _ := kernel.GetTenantID(r.Context())
 
-	// 2. Respond using the standard error format
+		slog.Error("Internal server error",
+			"correlation_id", correlationID,
+			"tenant_id",      tenantID,
+			"method",         r.Method,
+			"path",           r.URL.Path,
+			"error",          message,
+		)
+
+		// Em produção, não expõe o detalhe do erro interno ao cliente.
+		message = "internal server error — ref: " + correlationID
+	}
+
 	RespondWithError(w, r, statusCode, message)
 }
+

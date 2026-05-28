@@ -40,3 +40,11 @@ type ProductRepository interface {
 type TransactionManager interface {
 	Execute(ctx context.Context, fn func(ctx context.Context) error) error
 }
+
+// ProductCacheStore define o contrato para o cache de vitrine de produtos.
+// O adaptador Redis implementa essa interface; o ProductUseCase depende apenas dela.
+type ProductCacheStore interface {
+	Get(ctx context.Context, tenantID string) ([]*entity.Product, bool, error)
+	Set(ctx context.Context, tenantID string, products []*entity.Product) error
+	Invalidate(ctx context.Context, tenantID string) error
+}

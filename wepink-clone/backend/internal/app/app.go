@@ -45,6 +45,13 @@ func (a *App) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
+
+	// Configuração do Connection Pool para Escalabilidade
+	db.SetMaxOpenConns(100)          // Máximo de conexões abertas simultaneamente (evita sobrecarga no MySQL)
+	db.SetMaxIdleConns(10)           // Máximo de conexões ociosas mantidas abertas
+	db.SetConnMaxLifetime(time.Hour) // Tempo máximo de vida de uma conexão (evita conexões "presas" ou stale)
+	db.SetConnMaxIdleTime(10 * time.Minute) // Fecha conexões ociosas após 10 min
+
 	a.db = db
 
 	// 2. Run Migrations
@@ -85,6 +92,7 @@ func (a *App) Start() error {
 	userRepo := mysql.NewUserRepository(db)
 	productRepo := mysql.NewProductRepository(db)
 	idempotencyStore := redisAdapter.NewIdempotencyStore(a.redis)
+	productCache := redisAdapter.NewProductCacheStore(a.redis)
 	paymentGateway := payment.NewMercadoPagoAdapter()
 	idempotencyService := service.NewIdempotencyService(idempotencyStore, paymentRepo)
 
@@ -103,7 +111,7 @@ func (a *App) Start() error {
 		jwtSecret = "awaken-rise-jwt-secret-key-32-bytes!"
 	}
 	authUC := usecase.NewAuthUseCase(userRepo, jwtSecret)
-	productUC := usecase.NewProductUseCase(productRepo)
+	productUC := usecase.NewProductUseCase(productRepo, productCache)
 
 	// 5. Use Cases
 	orderUC := usecase.NewOrderUseCase(orderRepo, productRepo, eventDispatcher, txManager)
@@ -166,8 +174,12 @@ func (a *App) Start() error {
 	mux.HandleFunc("GET /products", handlerHTTP.ListProducts)
 
 	a.httpServer = &http.Server{
-		Addr:    ":8080",
-		Handler: httpAdapter.CorrelationIDMiddleware(httpAdapter.TenantIDMiddleware(mux)),
+		Addr: ":8080",
+		Handler: httpAdapter.CorrelationIDMiddleware(
+			httpAdapter.TenantIDMiddleware(
+				httpAdapter.MetricsMiddleware(db)(mux),
+			),
+		),
 	}
 
 	// Graceful Shutdown
