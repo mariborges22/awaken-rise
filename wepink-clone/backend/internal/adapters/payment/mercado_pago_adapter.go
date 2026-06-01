@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/awaken-rise/backend/internal/domain/kernel"
@@ -22,6 +25,107 @@ func NewMercadoPagoAdapter() *MercadoPagoAdapter {
 			Timeout: 15 * time.Second,
 		},
 	}
+}
+
+// OAuthTokenResponse é a resposta do endpoint /oauth/token do Mercado Pago.
+type OAuthTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	// ExpiresIn em segundos (normalmente 15552000 = 180 dias para access_token)
+	ExpiresIn int `json:"expires_in"`
+	// UserID é o ID do lojista no Mercado Pago (útil para logs e associação)
+	UserID    int64  `json:"user_id"`
+	TokenType string `json:"token_type"`
+}
+
+// OAuthAuthorizationURL monta a URL de autorização para redirecionar o lojista.
+// O parâmetro `state` deve conter o tenant_id para prevenção de CSRF.
+func (a *MercadoPagoAdapter) OAuthAuthorizationURL(state string) string {
+	appID := os.Getenv("MP_APP_ID")
+	redirectURI := os.Getenv("MP_REDIRECT_URI")
+	return fmt.Sprintf(
+		"https://auth.mercadopago.com/authorization?client_id=%s&response_type=code&platform_id=mp&redirect_uri=%s&state=%s",
+		appID, url.QueryEscape(redirectURI), url.QueryEscape(state),
+	)
+}
+
+// ExchangeOAuthCode troca o `code` temporário (retornado no callback) por
+// um access_token + refresh_token de longa duração via Server-to-Server.
+func (a *MercadoPagoAdapter) ExchangeOAuthCode(ctx context.Context, code string) (*ports.OAuthTokenResult, error) {
+	appID := os.Getenv("MP_APP_ID")
+	clientSecret := os.Getenv("MP_CLIENT_SECRET")
+	redirectURI := os.Getenv("MP_REDIRECT_URI")
+
+	params := url.Values{}
+	params.Set("grant_type", "authorization_code")
+	params.Set("client_id", appID)
+	params.Set("client_secret", clientSecret)
+	params.Set("code", code)
+	params.Set("redirect_uri", redirectURI)
+
+	raw, err := a.requestToken(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &ports.OAuthTokenResult{
+		AccessToken:  raw.AccessToken,
+		RefreshToken: raw.RefreshToken,
+		ExpiresIn:    raw.ExpiresIn,
+		UserID:       raw.UserID,
+	}, nil
+}
+
+// RefreshAccessToken renova silenciosamente um access_token expirado usando o refresh_token.
+// Deve ser chamado pelo PaymentUseCase quando a API do MP retornar HTTP 401.
+func (a *MercadoPagoAdapter) RefreshAccessToken(ctx context.Context, refreshToken string) (*ports.OAuthTokenResult, error) {
+	appID := os.Getenv("MP_APP_ID")
+	clientSecret := os.Getenv("MP_CLIENT_SECRET")
+
+	params := url.Values{}
+	params.Set("grant_type", "refresh_token")
+	params.Set("client_id", appID)
+	params.Set("client_secret", clientSecret)
+	params.Set("refresh_token", refreshToken)
+
+	raw, err := a.requestToken(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return &ports.OAuthTokenResult{
+		AccessToken:  raw.AccessToken,
+		RefreshToken: raw.RefreshToken,
+		ExpiresIn:    raw.ExpiresIn,
+		UserID:       raw.UserID,
+	}, nil
+}
+
+// requestToken é o helper compartilhado que faz o POST /oauth/token.
+func (a *MercadoPagoAdapter) requestToken(ctx context.Context, params url.Values) (*OAuthTokenResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.mercadopago.com/oauth/token",
+		strings.NewReader(params.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oauth token request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		var mpErr map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&mpErr)
+		return nil, fmt.Errorf("MP OAuth error %d: %v", resp.StatusCode, mpErr["message"])
+	}
+
+	var tokenResp OAuthTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+	return &tokenResp, nil
 }
 
 type MPPaymentRequest struct {
@@ -42,8 +146,9 @@ type MPPaymentResponse struct {
 	Status string `json:"status"`
 	PointOfInteraction struct {
 		TransactionData struct {
-			TicketURL string `json:"ticket_url"`
-			QRCode    string `json:"qr_code"`
+			TicketURL    string `json:"ticket_url"`
+			QRCode       string `json:"qr_code"`
+			QRCodeBase64 string `json:"qr_code_base64"`
 		} `json:"transaction_data"`
 	} `json:"point_of_interaction"`
 	StatusDetail string `json:"status_detail"`
@@ -99,11 +204,13 @@ func (a *MercadoPagoAdapter) Process(ctx context.Context, req ports.PaymentReque
 	}
 
 	return &ports.PaymentGatewayResponse{
-		Success:       mpResp.Status == "approved" || mpResp.Status == "pending",
-		TransactionID: fmt.Sprintf("%d", mpResp.ID),
-		Status:        mpResp.Status,
-		PaymentURL:    mpResp.PointOfInteraction.TransactionData.TicketURL,
-		ErrorMessage:  mpResp.StatusDetail,
+		Success:         mpResp.Status == "approved" || mpResp.Status == "pending",
+		TransactionID:   fmt.Sprintf("%d", mpResp.ID),
+		Status:          mpResp.Status,
+		PaymentURL:      mpResp.PointOfInteraction.TransactionData.TicketURL,
+		PixQRCodeBase64: mpResp.PointOfInteraction.TransactionData.QRCodeBase64,
+		PixCopyPaste:    mpResp.PointOfInteraction.TransactionData.QRCode,
+		ErrorMessage:    mpResp.StatusDetail,
 	}, nil
 }
 

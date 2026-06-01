@@ -21,10 +21,11 @@ type OrderHandler struct {
 	tenantRepo       ports.TenantRepository
 	tenantOnboarding *usecase.TenantOnboardingUseCase
 	dispatcher       ports.EventDispatcher
-	encryption       *service.EncryptionService
+	encryptionService *service.EncryptionService
 	authUseCase      *usecase.AuthUseCase
 	productUseCase   *usecase.ProductUseCase
 	billingUseCase   *usecase.BillingUseCase
+	mpOAuthProvider  ports.OAuthProvider // Injetado via SetMPOAuthProvider
 }
 
 func NewOrderHandler(
@@ -46,7 +47,7 @@ func NewOrderHandler(
 }
 
 func (h *OrderHandler) SetEncryptionService(s *service.EncryptionService) {
-	h.encryption = s
+	h.encryptionService = s
 }
 
 func (h *OrderHandler) SetAuthUseCase(s *usecase.AuthUseCase) {
@@ -215,13 +216,21 @@ func (h *OrderHandler) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 		input.IdempotencyKey = uuid.New().String()
 	}
 
-	payment, err := h.paymentUseCase.ProcessPayment(r.Context(), input)
+	payment, resp, err := h.paymentUseCase.ProcessPayment(r.Context(), input)
 	if err != nil {
 		HandleError(w, r, err)
 		return
 	}
 
-	RespondWithSuccess(w, r, http.StatusOK, payment)
+	// Mescla as informações do pagamento interno com os dados do gateway (Pix QR Code)
+	responsePayload := map[string]interface{}{
+		"payment_id":       payment.ID,
+		"order_id":         payment.OrderID,
+		"status":           payment.Status,
+		"gateway_response": resp,
+	}
+
+	RespondWithSuccess(w, r, http.StatusOK, responsePayload)
 }
 
 func (h *OrderHandler) Live(w http.ResponseWriter, r *http.Request) {
@@ -318,7 +327,7 @@ func (h *OrderHandler) UpdateTenantConfig(w http.ResponseWriter, r *http.Request
 	settingsJSON, _ := json.Marshal(req.Settings)
 
 	// 3. Criptografar
-	encrypted, err := h.encryption.Encrypt(string(settingsJSON))
+	encrypted, err := h.encryptionService.Encrypt(string(settingsJSON))
 	if err != nil {
 		HandleError(w, r, fmt.Errorf("%w: failed to secure settings", kernel.ErrInternal))
 		return
@@ -354,12 +363,12 @@ func (h *OrderHandler) GetTenantConfig(w http.ResponseWriter, r *http.Request) {
 
 	var settings map[string]interface{}
 	if tenant.EncryptedConfig != "" {
-		if h.encryption == nil {
+		if h.encryptionService == nil {
 			HandleError(w, r, fmt.Errorf("%w: encryption service not initialized", kernel.ErrInternal))
 			return
 		}
 		
-		decrypted, err := h.encryption.Decrypt(tenant.EncryptedConfig)
+		decrypted, err := h.encryptionService.Decrypt(tenant.EncryptedConfig)
 		if err != nil {
 			HandleError(w, r, fmt.Errorf("%w: failed to decrypt settings", kernel.ErrInternal))
 			return

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/awaken-rise/backend/internal/domain/entity"
 	"github.com/awaken-rise/backend/internal/domain/service"
@@ -25,6 +26,7 @@ type PaymentUseCase struct {
 	txManager        ports.TransactionManager
 	dispatcher       ports.EventDispatcher
 	gateway          ports.PaymentGateway
+	oauth            ports.OAuthProvider
 	idempotency      *service.IdempotencyService
 	encryption       *service.EncryptionService
 }
@@ -36,6 +38,7 @@ func NewPaymentUseCase(
 	txManager ports.TransactionManager,
 	dispatcher ports.EventDispatcher,
 	gateway ports.PaymentGateway,
+	oauth ports.OAuthProvider,
 	idempotency *service.IdempotencyService,
 	encryption *service.EncryptionService,
 ) *PaymentUseCase {
@@ -46,6 +49,7 @@ func NewPaymentUseCase(
 		txManager:        txManager,
 		dispatcher:       dispatcher,
 		gateway:          gateway,
+		oauth:            oauth,
 		idempotency:      idempotency,
 		encryption:       encryption,
 	}
@@ -60,7 +64,7 @@ type ProcessPaymentInput struct {
 	BuyerEmail     string
 }
 
-func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPaymentInput) (*entity.Payment, error) {
+func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPaymentInput) (*entity.Payment, *ports.PaymentGatewayResponse, error) {
 	correlationID, _ := ctx.Value(logger.CorrelationIDKey).(string)
 	
 	logger.Info(ctx, "Starting payment process", 
@@ -71,7 +75,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	// 1. Idempotency Check (Delegated to Service)
 	if input.IdempotencyKey != "" {
 		if payment, exists, err := uc.idempotency.GetPayment(ctx, input.IdempotencyKey); err == nil && exists {
-			return payment.(*entity.Payment), nil
+			return payment.(*entity.Payment), nil, nil
 		}
 	}
 
@@ -79,10 +83,10 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	order, err := uc.orderRepo.FindByID(ctx, input.OrderID)
 	if err != nil || order == nil {
 		logger.Error(ctx, "Order not found", "order_id", input.OrderID)
-		return nil, ErrOrderNotFound
+		return nil, nil, ErrOrderNotFound
 	}
 	if order.Status == entity.OrderCancelled {
-		return nil, errors.New("cannot pay for a cancelled order")
+		return nil, nil, errors.New("cannot pay for a cancelled order")
 	}
 	
 	order.RecalculateTotal()
@@ -91,7 +95,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	tenant, err := uc.tenantRepo.FindByID(ctx, order.TenantID)
 	if err != nil || tenant == nil {
 		logger.Error(ctx, "Tenant config not found", "tenant_id", order.TenantID)
-		return nil, fmt.Errorf("tenant configuration not found for ID: %s", order.TenantID)
+		return nil, nil, fmt.Errorf("tenant configuration not found for ID: %s", order.TenantID)
 	}
 
 	// 5. Business Rule: Plan & Verification Enforcement
@@ -102,7 +106,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 			"verification", tenant.VerificationStatus,
 			"usage", tenant.MonthlyUsageCount,
 			"plan", tenant.Plan)
-		return nil, errors.New("subscription limit reached or account not verified")
+		return nil, nil, errors.New("subscription limit reached or account not verified")
 	}
 
 	// 5. Create and Process Payment
@@ -111,7 +115,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 	logger.Info(ctx, "Calling payment gateway", "amount", order.Total, "method", input.PaymentMethod, "provider", tenant.PaymentProvider)
 
 	// Recuperar token real (Criptografado)
-	token, _ := uc.getTenantToken(tenant)
+	token, _ := uc.getTenantToken(ctx, tenant)
 
 	resp, err := uc.gateway.Process(ctx, ports.PaymentRequest{
 		Amount:        order.Total,
@@ -161,7 +165,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 
 	if err != nil {
 		logger.Error(ctx, "Transaction failed", "error", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// 7. Store Idempotency Result
@@ -171,7 +175,7 @@ func (uc *PaymentUseCase) ProcessPayment(ctx context.Context, input ProcessPayme
 
 	metrics.PaymentsTotal.WithLabelValues(order.TenantID, string(payment.Status)).Inc()
 
-	return payment, nil
+	return payment, resp, nil
 }
 
 type WebhookPayload struct {
@@ -215,7 +219,7 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 	}
 
 	// 3. Verify Status with Gateway (Security)
-	token, _ := uc.getTenantToken(tenant)
+	token, _ := uc.getTenantToken(ctx, tenant)
 	resp, err := uc.gateway.GetPaymentStatus(ctx, payload.Data.ID, token)
 	if err != nil {
 		return fmt.Errorf("failed to verify payment status with gateway: %w", err)
@@ -267,24 +271,68 @@ func (uc *PaymentUseCase) HandleWebhook(ctx context.Context, payload WebhookPayl
 	return nil
 }
 
-// Auxiliar para descriptografar tokens de gateway
-func (uc *PaymentUseCase) getTenantToken(tenant *entity.Tenant) (string, error) {
+// tenantOAuthConfig é a estrutura que armazenamos cifrada no banco.
+// Sempre persiste access_token + refresh_token juntos.
+type tenantOAuthConfig struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// getTenantToken descriptografa o config do tenant e faz auto-refresh
+// se o access_token expirar em menos de 7 dias (margem de segurança).
+func (uc *PaymentUseCase) getTenantToken(ctx context.Context, tenant *entity.Tenant) (string, error) {
 	if tenant.EncryptedConfig == "" {
-		return "", errors.New("tenant has no payment configuration")
+		return "", errors.New("tenant has no payment configuration — connect Mercado Pago first")
 	}
 
 	decryptedJSON, err := uc.encryption.Decrypt(tenant.EncryptedConfig)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decrypt tenant config: %w", err)
 	}
 
-	var config struct {
-		AccessToken string `json:"access_token"`
-	}
+	var config tenantOAuthConfig
 	if err := json.Unmarshal([]byte(decryptedJSON), &config); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse tenant config: %w", err)
+	}
+
+	// Auto-refresh: se o token expirar em menos de 7 dias, renovar silenciosamente.
+	sevenDays := 7 * 24 * time.Hour
+	needsRefresh := !tenant.TokenExpiresAt.IsZero() &&
+		time.Until(tenant.TokenExpiresAt) < sevenDays &&
+		config.RefreshToken != ""
+
+	if needsRefresh {
+		logger.Info(ctx, "OAuth token expiring soon, refreshing silently",
+			"tenant_id", tenant.ID,
+			"expires_at", tenant.TokenExpiresAt)
+
+		newToken, err := uc.oauth.RefreshAccessToken(ctx, config.RefreshToken)
+		if err != nil {
+			// Falha no refresh não deve bloquear a venda — usamos o token atual
+			logger.Warn(ctx, "Silent token refresh failed, using existing token",
+				"tenant_id", tenant.ID, "error", err)
+		} else {
+			// Persistir novos tokens cifrados em background (fire-and-forget)
+			go func() {
+				newConfig := tenantOAuthConfig{
+					AccessToken:  newToken.AccessToken,
+					RefreshToken: newToken.RefreshToken,
+				}
+				newJSON, _ := json.Marshal(newConfig)
+				newEncrypted, encErr := uc.encryption.Encrypt(string(newJSON))
+				if encErr != nil {
+					logger.Warn(ctx, "Failed to encrypt refreshed token", "error", encErr)
+					return
+				}
+				tenant.EncryptedConfig = newEncrypted
+				tenant.TokenExpiresAt = time.Now().Add(time.Duration(newToken.ExpiresIn) * time.Second)
+				_ = uc.tenantRepo.Save(context.Background(), tenant)
+				logger.Info(ctx, "OAuth token refreshed and persisted", "tenant_id", tenant.ID)
+			}()
+			// Usar o novo access_token imediatamente para esta requisição
+			config.AccessToken = newToken.AccessToken
+		}
 	}
 
 	return config.AccessToken, nil
 }
-

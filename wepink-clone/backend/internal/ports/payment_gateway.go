@@ -15,14 +15,33 @@ type PaymentRequest struct {
 }
 
 type PaymentGatewayResponse struct {
-	Success       bool
-	TransactionID string
-	Status        string // 'approved', 'pending', 'rejected'
-	PaymentURL    string // Para Pix (QR Code) ou Boleto
-	ErrorMessage  string
+	Success         bool
+	TransactionID   string
+	Status          string // 'approved', 'pending', 'rejected'
+	PaymentURL      string // Link do boleto (se aplicável)
+	PixQRCodeBase64 string // Imagem do QR Code do PIX em Base64
+	PixCopyPaste    string // Chave PIX Copia e Cola
+	ErrorMessage    string
+}
+
+// OAuthTokenResult é o resultado de uma operação de troca ou renovação de token.
+type OAuthTokenResult struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int // segundos
+	UserID       int64
+}
+
+// OAuthProvider define as operações de autorização do Gateway de Pagamento.
+// Separado de PaymentGateway para respeitar SRP.
+type OAuthProvider interface {
+	OAuthAuthorizationURL(state string) string
+	ExchangeOAuthCode(ctx context.Context, code string) (*OAuthTokenResult, error)
+	RefreshAccessToken(ctx context.Context, refreshToken string) (*OAuthTokenResult, error)
 }
 
 type PaymentGateway interface {
 	Process(ctx context.Context, req PaymentRequest) (*PaymentGatewayResponse, error)
 	GetPaymentStatus(ctx context.Context, transactionID string, tenantToken string) (*PaymentGatewayResponse, error)
 }
+

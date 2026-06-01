@@ -123,6 +123,7 @@ func (a *App) Start() error {
 		txManager, 
 		eventDispatcher, 
 		paymentGateway,
+		paymentGateway, // OAuthProvider: MercadoPagoAdapter implementa ambas as interfaces
 		idempotencyService,
 		encryptionService,
 	)
@@ -154,6 +155,7 @@ func (a *App) Start() error {
 
 	billingUC := usecase.NewBillingUseCase(tenantRepo)
 	handlerHTTP.SetBillingUseCase(billingUC)
+	handlerHTTP.SetMPOAuthProvider(paymentGateway) // Injeta o adapter OAuth
 
 	authMiddleware := httpAdapter.NewAuthMiddleware(jwtSecret)
 
@@ -172,6 +174,9 @@ func (a *App) Start() error {
 	mux.Handle("PUT /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.UpdateTenantConfig)))
 	mux.Handle("POST /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.CreateProduct)))
 	mux.HandleFunc("GET /products", handlerHTTP.ListProducts)
+	// Rotas OAuth Mercado Pago
+	mux.Handle("GET /auth/mercadopago/url", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.MercadoPagoOAuthURL)))
+	mux.HandleFunc("GET /auth/mercadopago/callback", handlerHTTP.MercadoPagoOAuthCallback)
 
 	a.httpServer = &http.Server{
 		Addr: ":8080",
