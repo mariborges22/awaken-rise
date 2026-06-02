@@ -8,6 +8,7 @@ import { OrderComponent } from './components/order/order.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { OnboardingComponent } from './components/onboarding/onboarding.component';
 import { SettingsComponent } from './components/settings/settings.component';
+import { LoginComponent } from './components/login/login.component';
 import { CorrelationIdInterceptor } from './interceptors/correlation-id.interceptor';
 import { TenantInterceptor } from './interceptors/tenant.interceptor';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
@@ -22,6 +23,7 @@ import { LandingPageComponent } from './components/landing-page/landing-page.com
     DashboardComponent,
     OnboardingComponent,
     SettingsComponent,
+    LoginComponent,
     LandingPageComponent
   ],
   imports: [

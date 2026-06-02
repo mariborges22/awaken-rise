@@ -1,5 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
+import { switchMap, takeWhile } from 'rxjs/operators';
 import { ApiService } from '../../services/api.service';
+import { TenantService } from '../../core/services/tenant.service';
 import { Order, OrderItem, Product } from '../../models/api.models';
 
 @Component({
@@ -7,8 +11,7 @@ import { Order, OrderItem, Product } from '../../models/api.models';
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.css']
 })
-export class OrderComponent implements OnInit {
-  orderIdInput: string = '';
+export class OrderComponent implements OnInit, OnDestroy {
   currentOrder: Order | null = null;
   errorMessage: string = '';
   loading: boolean = false;
@@ -19,11 +22,29 @@ export class OrderComponent implements OnInit {
   buyerEmail: string = '';
   pixQRCodeBase64: string = '';
   pixCopyPaste: string = '';
+  paymentConfirmed: boolean = false;
 
-  constructor(private apiService: ApiService) {}
+  private pollingSub: Subscription | null = null;
+
+  constructor(
+    private apiService: ApiService,
+    private tenantService: TenantService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit() {
+    // Lê o :tenantId da URL (ex: /loja/loja-da-maria) e registra no TenantService.
+    // O TenantInterceptor vai injetar automaticamente esse ID no header X-Tenant-ID
+    // em todas as requisições HTTP subsequentes.
+    const tenantId = this.route.snapshot.paramMap.get('tenantId');
+    if (tenantId) {
+      this.tenantService.setTenant(tenantId);
+    }
     this.loadProducts();
+  }
+
+  ngOnDestroy() {
+    this.stopPolling();
   }
 
   loadProducts() {
@@ -33,8 +54,8 @@ export class OrderComponent implements OnInit {
         this.products = res.data || [];
         this.loading = false;
       },
-      error: (err) => {
-        this.errorMessage = 'Failed to load products';
+      error: () => {
+        this.errorMessage = 'Não foi possível carregar os produtos. Tente novamente.';
         this.loading = false;
       }
     });
@@ -49,6 +70,19 @@ export class OrderComponent implements OnInit {
     }
   }
 
+  removeFromCart(productId: string) {
+    if (this.cart[productId] > 0) {
+      this.cart[productId]--;
+    }
+  }
+
+  getCartTotal(): number {
+    return this.getCartItems().reduce((total, item) => {
+      const product = this.products.find(p => p.id === item.product_id);
+      return total + (product ? product.price * item.quantity : 0);
+    }, 0);
+  }
+
   getCartItems(): OrderItem[] {
     return Object.keys(this.cart)
       .filter(id => this.cart[id] > 0)
@@ -61,35 +95,20 @@ export class OrderComponent implements OnInit {
   createOrder() {
     const items = this.getCartItems();
     if (items.length === 0) {
-      this.errorMessage = 'Cart is empty';
+      this.errorMessage = 'Seu carrinho está vazio.';
       return;
     }
 
     this.loading = true;
+    this.errorMessage = '';
     this.apiService.createOrder(items).subscribe({
       next: (res) => {
         this.currentOrder = res.data!;
-        this.orderIdInput = this.currentOrder.id;
-        this.cart = {}; // Clear cart
+        this.cart = {};
         this.loading = false;
       },
       error: (err) => {
-        this.errorMessage = err.error?.error || 'Failed to create order';
-        this.loading = false;
-      }
-    });
-  }
-
-  lookupOrder() {
-    if (!this.orderIdInput) return;
-    this.loading = true;
-    this.apiService.getOrder(this.orderIdInput).subscribe({
-      next: (res) => {
-        this.currentOrder = res.data!;
-        this.loading = false;
-      },
-      error: (err) => {
-        this.errorMessage = 'Order not found';
+        this.errorMessage = err.error?.error || 'Falha ao criar pedido.';
         this.loading = false;
       }
     });
@@ -98,7 +117,7 @@ export class OrderComponent implements OnInit {
   pay() {
     if (!this.currentOrder) return;
     if (!this.buyerEmail) {
-      this.errorMessage = 'Por favor, informe um email válido para gerar o Pix.';
+      this.errorMessage = 'Por favor, informe seu e-mail para gerar o PIX.';
       return;
     }
 
@@ -115,12 +134,39 @@ export class OrderComponent implements OnInit {
           this.pixQRCodeBase64 = res.data.gateway_response.PixQRCodeBase64;
           this.pixCopyPaste = res.data.gateway_response.PixCopyPaste;
         }
-        this.lookupOrder(); // Refresh status
+        // Inicia o polling para detectar quando o PIX for pago
+        this.startPolling();
       },
       error: (err) => {
-        this.errorMessage = err.error?.error || 'Payment failed';
+        this.errorMessage = err.error?.error || 'Falha ao processar pagamento.';
         this.loading = false;
       }
     });
+  }
+
+  // Polling: verifica o status do pedido a cada 3 segundos até ser confirmado
+  private startPolling() {
+    if (!this.currentOrder) return;
+    const orderId = this.currentOrder.id;
+    
+    this.pollingSub = interval(3000).pipe(
+      switchMap(() => this.apiService.getOrder(orderId)),
+      takeWhile(res => res.data?.status !== 'CONFIRMED', true)
+    ).subscribe({
+      next: (res) => {
+        this.currentOrder = res.data!;
+        if (res.data?.status === 'CONFIRMED') {
+          this.paymentConfirmed = true;
+          this.stopPolling();
+        }
+      }
+    });
+  }
+
+  private stopPolling() {
+    if (this.pollingSub) {
+      this.pollingSub.unsubscribe();
+      this.pollingSub = null;
+    }
   }
 }

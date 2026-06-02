@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { ApiService } from '../../services/api.service';
 
 @Component({
   selector: 'app-settings',
@@ -12,28 +13,28 @@ export class SettingsComponent implements OnInit {
   statusMessage: string = '';
   statusIsError: boolean = false;
 
-  constructor(private http: HttpClient) { }
+  constructor(private apiService: ApiService, private http: HttpClient) { }
 
   ngOnInit(): void {
-    // Verificar se voltamos do callback do Mercado Pago
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    // Verifica se voltamos do callback do Mercado Pago via query string
+    const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
     if (status === 'connected') {
       this.statusMessage = 'Conta Mercado Pago conectada com sucesso! 🎉';
       this.statusIsError = false;
       this.isMpConnected = true;
-      // Limpar a URL sem recarregar a página
-      history.replaceState(null, '', window.location.pathname + '#/settings');
+      history.replaceState(null, '', window.location.pathname);
     } else if (status === 'oauth_error') {
       this.statusMessage = 'Falha ao conectar com o Mercado Pago. Tente novamente.';
       this.statusIsError = true;
-      history.replaceState(null, '', window.location.pathname + '#/settings');
+      history.replaceState(null, '', window.location.pathname);
     }
     this.loadConfig();
   }
 
   loadConfig() {
     this.loading = true;
+    // Usa HttpClient diretamente pois o AuthInterceptor injetará o JWT automaticamente
     this.http.get<any>('/api/tenants/me/config').subscribe({
       next: (res) => {
         this.loading = false;
@@ -49,12 +50,15 @@ export class SettingsComponent implements OnInit {
 
   startOAuth() {
     this.loading = true;
-    // Buscar a URL de autorização gerada pelo backend (contém o state anti-CSRF)
-    this.http.get<any>('/api/auth/mercadopago/url').subscribe({
+    // getMpOAuthUrl usa o ApiService que terá o JWT injetado pelo AuthInterceptor
+    this.apiService.getMpOAuthUrl().subscribe({
       next: (res) => {
         if (res?.data?.url) {
-          // Redirecionar o lojista para o site oficial do Mercado Pago
           window.location.href = res.data.url;
+        } else {
+          this.loading = false;
+          this.statusMessage = 'URL de autorização inválida. Tente novamente.';
+          this.statusIsError = true;
         }
       },
       error: () => {

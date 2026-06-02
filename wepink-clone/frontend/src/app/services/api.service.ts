@@ -11,29 +11,28 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  // Para o Teste de Carga e dev local, estamos chumbando o ID do lojista.
-  // No lançamento oficial, isso virá da URL (ex: meusaas.com/loja/:tenantId)
-  private getHeaders() {
-    return {
-      headers: {
-        'X-Tenant-ID': 'tenant-loadtest-01'
-      }
-    };
-  }
+  // O X-Tenant-ID é injetado automaticamente pelo TenantInterceptor.
+  // O JWT de lojista é injetado automaticamente pelo AuthInterceptor.
+  // Não precisamos passar headers manualmente aqui.
 
   getProducts(): Observable<ApiResponse<Product[]>> {
-    return this.http.get<ApiResponse<Product[]>>(`${this.baseUrl}/products`, this.getHeaders());
+    return this.http.get<ApiResponse<Product[]>>(`${this.baseUrl}/products`);
   }
 
   createOrder(items: OrderItem[]): Observable<ApiResponse<Order>> {
-    return this.http.post<ApiResponse<Order>>(`${this.baseUrl}/orders`, { items }, this.getHeaders());
+    return this.http.post<ApiResponse<Order>>(`${this.baseUrl}/orders`, { items });
   }
 
   getOrder(id: string): Observable<ApiResponse<Order>> {
-    return this.http.get<ApiResponse<Order>>(`${this.baseUrl}/orders/${id}`, this.getHeaders());
+    return this.http.get<ApiResponse<Order>>(`${this.baseUrl}/orders/${id}`);
   }
 
   processPayment(orderId: string, payload: { payment_method: string, buyer_email: string }): Observable<ApiResponse<Payment>> {
-    return this.http.post<ApiResponse<Payment>>(`${this.baseUrl}/payments/${orderId}`, payload, this.getHeaders());
+    return this.http.post<ApiResponse<Payment>>(`${this.baseUrl}/payments/${orderId}`, payload);
+  }
+
+  // Métodos Admin (JWT injetado pelo AuthInterceptor)
+  getMpOAuthUrl(): Observable<ApiResponse<{ url: string }>> {
+    return this.http.get<ApiResponse<{ url: string }>>(`${this.baseUrl}/auth/mercadopago/url`);
   }
 }
