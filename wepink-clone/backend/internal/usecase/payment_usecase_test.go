@@ -27,7 +27,7 @@ func TestPaymentUseCase_PlanEnforcement(t *testing.T) {
 	
 	// Criar o UseCase com mocks mínimos (apenas o necessário para testar o enforcement)
 	idempotency := service.NewIdempotencyService(nil, nil)
-	uc := NewPaymentUseCase(nil, orderRepo, tenantRepo, nil, nil, nil, idempotency, nil)
+	uc := NewPaymentUseCase(nil, orderRepo, tenantRepo, nil, nil, nil, nil, idempotency, nil)
 
 	t.Run("Block Sale for Pending Tenant", func(t *testing.T) {
 		tenantID := "pending-shop"
@@ -41,7 +41,7 @@ func TestPaymentUseCase_PlanEnforcement(t *testing.T) {
 		orderRepo.orders[orderID] = &entity.Order{ID: orderID, TenantID: tenantID, Status: entity.OrderPending}
 
 		input := ProcessPaymentInput{OrderID: orderID}
-		_, err := uc.ProcessPayment(context.Background(), input)
+		_, _, err := uc.ProcessPayment(context.Background(), input)
 
 		if err == nil || err.Error() != "subscription limit reached or account not verified" {
 			t.Errorf("expected verification error, got %v", err)
@@ -62,7 +62,7 @@ func TestPaymentUseCase_PlanEnforcement(t *testing.T) {
 		orderRepo.orders[orderID] = &entity.Order{ID: orderID, TenantID: tenantID, Status: entity.OrderPending}
 
 		input := ProcessPaymentInput{OrderID: orderID}
-		_, err := uc.ProcessPayment(context.Background(), input)
+		_, _, err := uc.ProcessPayment(context.Background(), input)
 
 		if err == nil || err.Error() != "subscription limit reached or account not verified" {
 			t.Errorf("expected plan limit error, got %v", err)

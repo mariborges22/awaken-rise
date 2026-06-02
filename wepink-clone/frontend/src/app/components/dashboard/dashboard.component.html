@@ -44,23 +44,44 @@
 
   <!-- Main Content Area -->
   <div class="content-grid">
-    <!-- Revenue Chart Placeholder -->
-    <div class="glass-card chart-container">
+    <!-- Product Management -->
+    <div class="glass-card chart-container" style="overflow-y: auto; max-height: 400px;">
       <div class="card-header">
-        <h2>Fluxo de Faturamento</h2>
-        <div class="time-filter">7 Dias</div>
+        <h2>Gestão de Produtos</h2>
       </div>
-      <div class="fake-chart">
-        <!-- Aqui entrará o Chart.js futuramente, agora simulamos com gradientes -->
-        <div class="bar-chart-sim">
-          <div class="bar" style="height: 40%"></div>
-          <div class="bar" style="height: 60%"></div>
-          <div class="bar" style="height: 35%"></div>
-          <div class="bar active" style="height: 90%"></div>
-          <div class="bar" style="height: 55%"></div>
-          <div class="bar" style="height: 70%"></div>
-        </div>
+      
+      <div class="product-form" style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" [(ngModel)]="newProduct.name" placeholder="Nome do Produto" style="flex: 2;">
+        <input type="number" [(ngModel)]="newProduct.price" placeholder="Preço (R$)" style="flex: 1;">
+        <input type="number" [(ngModel)]="newProduct.stock" placeholder="Estoque" style="flex: 1;">
+        <button class="btn-primary" (click)="createProduct()" [disabled]="creatingProduct" style="padding: 10px;">
+          {{ creatingProduct ? '...' : 'Adicionar' }}
+        </button>
       </div>
+
+      <div *ngIf="loadingProducts" class="loader"></div>
+      
+      <table style="width: 100%; text-align: left; border-collapse: collapse;" *ngIf="!loadingProducts">
+        <thead>
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <th style="padding: 10px 0;">ID</th>
+            <th>Nome</th>
+            <th>Preço</th>
+            <th>Estoque</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of products" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="padding: 10px 0; font-size: 0.8em; opacity: 0.7;">{{ p.id.substring(0, 8) }}</td>
+            <td>{{ p.name }}</td>
+            <td>R$ {{ p.price | number:'1.2-2' }}</td>
+            <td>{{ p.stock }}</td>
+          </tr>
+          <tr *ngIf="products.length === 0">
+            <td colspan="4" style="text-align: center; padding: 20px; opacity: 0.5;">Nenhum produto cadastrado.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Plan Usage -->
@@ -76,7 +97,7 @@
         </div>
         <p class="usage-note">Próximo upgrade: <strong>Plano Pro</strong> para vendas ilimitadas.</p>
       </div>
-      <button class="upgrade-btn">UPGRADE AGORA</button>
+      <button class="upgrade-btn" (click)="upgradePlan()">UPGRADE AGORA</button>
     </div>
   </div>
 </div>

@@ -16,7 +16,7 @@ import (
 // Retorna a URL de autorização do Mercado Pago para o frontend redirecionar o lojista.
 // O tenant_id autenticado é colocado no `state` para prevenção de CSRF.
 func (h *OrderHandler) MercadoPagoOAuthURL(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := r.Context().Value(kernel.TenantIDKey).(string)
+	tenantID, ok := kernel.GetTenantID(r.Context())
 	if !ok || tenantID == "" {
 		RespondWithError(w, r, http.StatusUnauthorized, "tenant not identified")
 		return

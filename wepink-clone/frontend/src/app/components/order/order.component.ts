@@ -16,6 +16,10 @@ export class OrderComponent implements OnInit {
   products: Product[] = [];
   cart: { [productId: string]: number } = {};
 
+  buyerEmail: string = '';
+  pixQRCodeBase64: string = '';
+  pixCopyPaste: string = '';
+
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
@@ -93,9 +97,24 @@ export class OrderComponent implements OnInit {
 
   pay() {
     if (!this.currentOrder) return;
+    if (!this.buyerEmail) {
+      this.errorMessage = 'Por favor, informe um email válido para gerar o Pix.';
+      return;
+    }
+
     this.loading = true;
-    this.apiService.processPayment(this.currentOrder.id).subscribe({
+    this.errorMessage = '';
+    
+    this.apiService.processPayment(this.currentOrder.id, {
+      payment_method: 'pix',
+      buyer_email: this.buyerEmail
+    }).subscribe({
       next: (res) => {
+        this.loading = false;
+        if (res.data?.gateway_response) {
+          this.pixQRCodeBase64 = res.data.gateway_response.PixQRCodeBase64;
+          this.pixCopyPaste = res.data.gateway_response.PixCopyPaste;
+        }
         this.lookupOrder(); // Refresh status
       },
       error: (err) => {

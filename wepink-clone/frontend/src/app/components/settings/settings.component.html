@@ -6,25 +6,32 @@
     <div class="settings-header">
       <div class="hud-label">// SECURE_GATEWAY_CONFIGURATION</div>
       <h1>Central de <span class="gradient-text">Pagamentos</span> <span class="kanji-sub">決済ハブ</span></h1>
-      <p>Gerencie seus provedores e protocolos de segurança.</p>
+      <p>Conecte sua conta oficial do Mercado Pago via protocolo OAuth 2.0.</p>
+    </div>
+
+    <!-- Feedback após retorno do OAuth -->
+    <div *ngIf="statusMessage" class="status-toast" [class.error]="statusIsError" [class.success]="!statusIsError">
+      {{ statusMessage }}
     </div>
 
     <!-- Lista de Provedores -->
     <div class="providers-grid">
       <!-- Mercado Pago -->
-      <div class="provider-item glass-card" [class.active]="selectedProvider === 'mercadopago'">
+      <div class="provider-item glass-card active">
         <div class="provider-status" [class.connected]="isMpConnected"></div>
         <div class="provider-icon">💳</div>
         <div class="provider-info">
           <h3>Mercado Pago</h3>
-          <span class="provider-type">OAuth 2.0 / API</span>
+          <span *ngIf="isMpConnected" class="connected-badge">✓ CONECTADO</span>
+          <span *ngIf="!isMpConnected" class="provider-type">OAuth 2.0 / Segurança Máxima</span>
         </div>
-        <button class="btn-connect" (click)="selectProvider('mercadopago')">
-          {{ isMpConnected ? 'CONFIGURAR' : 'CONECTAR' }}
+        <button class="btn-connect" (click)="startOAuth()" [disabled]="loading">
+          <span *ngIf="!loading">{{ isMpConnected ? 'RECONECTAR' : 'CONECTAR' }}</span>
+          <span *ngIf="loading" class="loader"></span>
         </button>
       </div>
 
-      <!-- Stripe (Próximamente) -->
+      <!-- Stripe (Em breve) -->
       <div class="provider-item glass-card disabled">
         <div class="provider-icon grayscale">🌍</div>
         <div class="provider-info">
@@ -34,35 +41,25 @@
       </div>
     </div>
 
-    <!-- Área de Configuração Dinâmica -->
-    <div *ngIf="selectedProvider === 'mercadopago'" class="config-panel animate-in">
-      <div class="divider"><span>CONFIGURAÇÃO MERCADO PAGO</span></div>
-      
+    <!-- Explicação do Fluxo OAuth -->
+    <div *ngIf="!isMpConnected" class="config-panel animate-in">
+      <div class="divider"><span>COMO FUNCIONA</span></div>
       <div class="oauth-section">
-        <p>Recomendamos o uso do protocolo <strong>OAuth 2.0</strong> para máxima segurança.</p>
-        <button class="btn-oauth" (click)="startOAuth()">
-          <span class="icon">🔌</span> CONECTAR CONTA OFICIAL
-        </button>
-      </div>
-
-      <div class="divider"><span>OU CONFIGURAÇÃO MANUAL</span></div>
-
-      <div class="form-group">
-        <label>ACCESS TOKEN <span class="kanji-tiny">アクセス</span></label>
-        <div class="input-secure">
-          <input type="password" [(ngModel)]="tempToken" placeholder="APP_USR-...">
-          <span class="lock-icon">🔒</span>
+        <p>Ao clicar em <strong>CONECTAR</strong>, você será redirecionado para o site oficial do Mercado Pago. Você fará login com seu e-mail e senha (com verificação por SMS). Após autorizar, será trazido de volta aqui automaticamente — sem precisar copiar nenhuma chave.</p>
+        <div class="security-badges">
+          <span class="badge">🔒 AES-256</span>
+          <span class="badge">🛡️ OAuth 2.0</span>
+          <span class="badge">🔄 Auto-Refresh</span>
         </div>
       </div>
-
-      <button class="btn-save" (click)="saveConfig()" [disabled]="loading">
-        <span *ngIf="!loading">SALVAR PROTOCOLO</span>
-        <span *ngIf="loading" class="loader"></span>
-      </button>
     </div>
 
-    <div *ngIf="saveSuccess" class="success-toast">
-      PROTOCOLO ATUALIZADO COM SUCESSO // ENCRYPTED_AND_SAVED
+    <div *ngIf="isMpConnected" class="config-panel animate-in">
+      <div class="divider"><span>SEGURANÇA ATIVA</span></div>
+      <div class="oauth-section">
+        <p>Suas credenciais estão armazenadas <strong>criptografadas (AES-256)</strong> e se renovam automaticamente a cada 180 dias, sem nenhuma ação sua.</p>
+      </div>
     </div>
   </div>
 </div>
+

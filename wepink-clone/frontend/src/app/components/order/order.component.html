@@ -79,13 +79,31 @@
         <span class="total-value">R$ {{ currentOrder.total | number:'1.2-2' }}</span>
       </div>
 
-      <button *ngIf="currentOrder.status === 'PENDING'" 
-              (click)="pay()" 
-              class="pay-btn-glow"
-              [disabled]="loading">
-        <span *ngIf="!loading">FINALIZAR PAGAMENTO</span>
-        <span *ngIf="loading" class="loader"></span>
-      </button>
+      <div *ngIf="currentOrder.status === 'PENDING' && !pixQRCodeBase64" class="payment-action">
+        <div class="input-group">
+          <input type="email" [(ngModel)]="buyerEmail" placeholder="Seu melhor e-mail para receber o recibo">
+        </div>
+        <button (click)="pay()" 
+                class="pay-btn-glow"
+                [disabled]="loading || !buyerEmail">
+          <span *ngIf="!loading">GERAR PIX (PAGAR)</span>
+          <span *ngIf="loading" class="loader"></span>
+        </button>
+      </div>
+
+      <!-- Área do PIX gerado -->
+      <div *ngIf="pixQRCodeBase64 && currentOrder.status === 'PENDING'" class="pix-area animate-in">
+        <h3>Escaneie o QR Code para Pagar</h3>
+        <img [src]="'data:image/png;base64,' + pixQRCodeBase64" alt="PIX QR Code" class="qr-code-img">
+        
+        <div class="copy-paste-box">
+          <label>Ou PIX Copia e Cola:</label>
+          <input type="text" [value]="pixCopyPaste" readonly>
+        </div>
+        <p class="pix-instructions">O pagamento será identificado automaticamente em alguns segundos.</p>
+        
+        <button (click)="lookupOrder()" class="btn-secondary full-width mt-2">Já Paguei (Verificar Status)</button>
+      </div>
 
       <div *ngIf="currentOrder.status === 'CONFIRMED'" class="success-message">
         <span class="icon">✅</span> Pagamento Processado com Sucesso

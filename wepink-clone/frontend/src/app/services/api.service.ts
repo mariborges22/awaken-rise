@@ -23,7 +23,7 @@ export class ApiService {
     return this.http.get<ApiResponse<Order>>(`${this.baseUrl}/orders/${id}`);
   }
 
-  processPayment(orderId: string): Observable<ApiResponse<Payment>> {
-    return this.http.post<ApiResponse<Payment>>(`${this.baseUrl}/payments/${orderId}`, {});
+  processPayment(orderId: string, payload: { payment_method: string, buyer_email: string }): Observable<ApiResponse<Payment>> {
+    return this.http.post<ApiResponse<Payment>>(`${this.baseUrl}/payments/${orderId}`, payload);
   }
 }

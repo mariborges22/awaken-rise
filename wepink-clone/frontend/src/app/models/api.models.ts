@@ -18,11 +18,21 @@ export interface Order {
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 }
 
+export interface GatewayResponse {
+  Success: boolean;
+  TransactionID: string;
+  Status: string;
+  PaymentURL: string;
+  PixQRCodeBase64: string;
+  PixCopyPaste: string;
+  ErrorMessage: string;
+}
+
 export interface Payment {
-  id: string;
+  payment_id: string;
   order_id: string;
-  amount: number;
   status: 'PENDING' | 'APPROVED' | 'FAILED';
+  gateway_response?: GatewayResponse;
 }
 
 export interface ApiResponse<T> {

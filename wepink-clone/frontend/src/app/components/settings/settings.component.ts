@@ -7,15 +7,28 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./settings.component.css']
 })
 export class SettingsComponent implements OnInit {
-  selectedProvider: string = 'mercadopago';
   isMpConnected: boolean = false;
-  tempToken: string = '';
   loading: boolean = false;
-  saveSuccess: boolean = false;
+  statusMessage: string = '';
+  statusIsError: boolean = false;
 
   constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
+    // Verificar se voltamos do callback do Mercado Pago
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const status = params.get('status');
+    if (status === 'connected') {
+      this.statusMessage = 'Conta Mercado Pago conectada com sucesso! 🎉';
+      this.statusIsError = false;
+      this.isMpConnected = true;
+      // Limpar a URL sem recarregar a página
+      history.replaceState(null, '', window.location.pathname + '#/settings');
+    } else if (status === 'oauth_error') {
+      this.statusMessage = 'Falha ao conectar com o Mercado Pago. Tente novamente.';
+      this.statusIsError = true;
+      history.replaceState(null, '', window.location.pathname + '#/settings');
+    }
     this.loadConfig();
   }
 
@@ -24,57 +37,30 @@ export class SettingsComponent implements OnInit {
     this.http.get<any>('/api/tenants/me/config').subscribe({
       next: (res) => {
         this.loading = false;
-        if (res && res.data) {
-          const config = res.data;
-          this.selectedProvider = config.provider || 'mercadopago';
-          if (config.settings && config.settings.access_token) {
-            this.isMpConnected = true;
-            this.tempToken = config.settings.access_token;
-          } else {
-            this.isMpConnected = false;
-          }
+        if (res?.data?.settings?.access_token) {
+          this.isMpConnected = true;
         }
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        console.error('Falha ao carregar configurações do inquilino:', err);
       }
     });
   }
 
-  selectProvider(id: string) {
-    this.selectedProvider = id;
-    this.saveSuccess = false;
-  }
-
   startOAuth() {
-    alert('Redirecionando para o Mercado Pago (Fluxo OAuth)...');
-    // Em produção, aqui abriria o link de autorização do MP
-  }
-
-  saveConfig() {
-    if (!this.tempToken) return;
-
     this.loading = true;
-    const payload = {
-      provider: this.selectedProvider,
-      settings: {
-        access_token: this.tempToken
-      }
-    };
-
-    // Chamada para o novo endpoint seguro
-    this.http.put('/api/tenants/me/config', payload).subscribe({
-      next: () => {
-        this.loading = false;
-        this.saveSuccess = true;
-        this.isMpConnected = true;
-        this.tempToken = '';
-        setTimeout(() => this.saveSuccess = false, 5000);
+    // Buscar a URL de autorização gerada pelo backend (contém o state anti-CSRF)
+    this.http.get<any>('/api/auth/mercadopago/url').subscribe({
+      next: (res) => {
+        if (res?.data?.url) {
+          // Redirecionar o lojista para o site oficial do Mercado Pago
+          window.location.href = res.data.url;
+        }
       },
       error: () => {
         this.loading = false;
-        alert('Falha ao salvar configuração. Verifique as chaves.');
+        this.statusMessage = 'Não foi possível iniciar a conexão. Tente novamente.';
+        this.statusIsError = true;
       }
     });
   }

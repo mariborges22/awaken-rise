@@ -101,7 +101,7 @@ func (c *PaymentConsumer) handleMessage(ctx context.Context, d amqp.Delivery) {
 			IdempotencyKey: "event_" + event.ID,
 		}
 
-		payment, _, err := c.usecase.ProcessPayment(txCtx, input)
+		_, _, err := c.usecase.ProcessPayment(txCtx, input)
 		if err != nil {
 			return err
 		}
