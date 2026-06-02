@@ -421,38 +421,27 @@ func (h *OrderHandler) BillingWebhook(w http.ResponseWriter, r *http.Request) {
 	RespondWithSuccess(w, r, http.StatusOK, map[string]string{"status": "billing_updated"})
 }
 
-type MPWebhookPayload struct {
-	Action string `json:"action"`
-	Data   struct {
-		ID string `json:"id"`
-	} `json:"data"`
-}
-
 // MercadoPagoWebhook recebe notificações do MP sobre mudança de status de pagamento.
 // O endpoint deve ser público, sem authMiddleware.
 func (h *OrderHandler) MercadoPagoWebhook(w http.ResponseWriter, r *http.Request) {
-	var payload MPWebhookPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		// Retornar 200 OK mesmo com erro de parse para que o MP não fique tentando reenviar lixo
+	var reqPayload usecase.WebhookPayload
+	if err := json.NewDecoder(r.Body).Decode(&reqPayload); err != nil {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// O MP manda vários tipos de eventos (payment.created, payment.updated, etc)
-	if payload.Action != "payment.updated" && payload.Action != "payment.created" {
+	if reqPayload.Type != "payment" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	transactionID := payload.Data.ID
-	if transactionID == "" {
+	if reqPayload.Data.ID == "" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Passa a bola pro UseCase processar a lógica de segurança e atualização
-	if err := h.paymentUseCase.HandleWebhook(r.Context(), transactionID); err != nil {
-		fmt.Printf("Webhook error processing transaction %s: %v\n", transactionID, err)
+	if err := h.paymentUseCase.HandleWebhook(r.Context(), reqPayload); err != nil {
+		fmt.Printf("Webhook error processing transaction %s: %v\n", reqPayload.Data.ID, err)
 	}
 
 	w.WriteHeader(http.StatusOK)

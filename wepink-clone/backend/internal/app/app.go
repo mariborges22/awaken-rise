@@ -163,10 +163,6 @@ func (a *App) Start() error {
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
 	mux.HandleFunc("GET /health/ready", handlerHTTP.Ready)
 	mux.Handle("GET /metrics", handlerHTTP.Metrics())
-	// Rotas da Vitrine (Públicas, mas precisam saber de qual loja é)
-	storefrontMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mux.ServeHTTP(w, r)
-	})
 	
 	mux.Handle("POST /orders", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.CreateOrder)))
 	mux.Handle("GET /orders/{id}", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.GetOrder)))
