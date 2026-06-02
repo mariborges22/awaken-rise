@@ -163,17 +163,26 @@ func (a *App) Start() error {
 	mux.HandleFunc("GET /health/live", handlerHTTP.Live)
 	mux.HandleFunc("GET /health/ready", handlerHTTP.Ready)
 	mux.Handle("GET /metrics", handlerHTTP.Metrics())
-	mux.HandleFunc("POST /orders", handlerHTTP.CreateOrder)
-	mux.HandleFunc("GET /orders/{id}", handlerHTTP.GetOrder)
-	mux.HandleFunc("POST /payments/{orderId}", handlerHTTP.ProcessPayment)
+	// Rotas da Vitrine (Públicas, mas precisam saber de qual loja é)
+	storefrontMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r)
+	})
+	
+	mux.Handle("POST /orders", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.CreateOrder)))
+	mux.Handle("GET /orders/{id}", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.GetOrder)))
+	mux.Handle("POST /payments/{orderId}", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.ProcessPayment)))
+	mux.Handle("GET /products", httpAdapter.StorefrontTenantMiddleware(http.HandlerFunc(handlerHTTP.ListProducts)))
+
 	mux.HandleFunc("POST /tenants", handlerHTTP.RegisterTenant)
 	mux.HandleFunc("POST /auth/register", handlerHTTP.RegisterUser)
 	mux.HandleFunc("POST /auth/login", handlerHTTP.Login)
 	mux.HandleFunc("POST /webhooks/billing", handlerHTTP.BillingWebhook)
+	mux.HandleFunc("POST /webhooks/mercadopago", handlerHTTP.MercadoPagoWebhook)
+	
+	// Rotas do Lojista (Autenticadas via JWT)
 	mux.Handle("GET /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.GetTenantConfig)))
 	mux.Handle("PUT /tenants/me/config", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.UpdateTenantConfig)))
 	mux.Handle("POST /products", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.CreateProduct)))
-	mux.HandleFunc("GET /products", handlerHTTP.ListProducts)
 	// Rotas OAuth Mercado Pago
 	mux.Handle("GET /auth/mercadopago/url", authMiddleware.Handler(http.HandlerFunc(handlerHTTP.MercadoPagoOAuthURL)))
 	mux.HandleFunc("GET /auth/mercadopago/callback", handlerHTTP.MercadoPagoOAuthCallback)

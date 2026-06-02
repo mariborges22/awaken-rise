@@ -80,3 +80,18 @@ func MetricsMiddleware(db *sql.DB) func(http.Handler) http.Handler {
 	}
 }
 
+// StorefrontTenantMiddleware extrai o X-Tenant-ID de requisições públicas (Vitrine).
+// Usado em rotas como GET /products e POST /orders onde o comprador não tem login.
+func StorefrontTenantMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tenantID := r.Header.Get("X-Tenant-ID")
+		if tenantID != "" {
+			ctx := kernel.WithTenantID(r.Context(), tenantID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		
+		// Se não passar X-Tenant-ID, segue normal. 
+		next.ServeHTTP(w, r)
+	})
+}
