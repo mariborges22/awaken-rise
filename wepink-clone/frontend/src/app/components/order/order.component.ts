@@ -23,6 +23,7 @@ export class OrderComponent implements OnInit, OnDestroy {
   pixQRCodeBase64: string = '';
   pixCopyPaste: string = '';
   paymentConfirmed: boolean = false;
+  orderIdInput: string = '';
 
   private pollingSub: Subscription | null = null;
 
@@ -109,6 +110,30 @@ export class OrderComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.errorMessage = err.error?.error || 'Falha ao criar pedido.';
+        this.loading = false;
+      }
+    });
+  }
+
+  lookupOrder() {
+    const orderId = this.currentOrder?.id || this.orderIdInput.trim();
+    if (!orderId) {
+      this.errorMessage = 'Por favor, informe o ID do pedido.';
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+    this.apiService.getOrder(orderId).subscribe({
+      next: (res) => {
+        this.currentOrder = res.data!;
+        this.loading = false;
+        if (this.currentOrder.status === 'PENDING') {
+          this.startPolling();
+        }
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.error || 'Pedido não encontrado.';
         this.loading = false;
       }
     });
