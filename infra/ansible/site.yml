@@ -6,6 +6,7 @@
     project_root: "/opt/wepink"
     app_image: "maribma19/awakenrise_backend:latest"
     domain_name: "awakenrise.com.br"
+    discord_webhook_url: "https://discord.com/api/webhooks/1516526955212701798/GvUOKRPfDWVwmmOm6DCICLp-wqmu7b7uz6Pk-EuXCi1EYprrDeh0EHqgCIPJOX-bggze"
 
   tasks:
     - name: Atualizar cache do apt
@@ -250,6 +251,7 @@
       loop:
         - /tmp/grafana/provisioning/datasources
         - /tmp/grafana/provisioning/dashboards
+        - /tmp/grafana/provisioning/alerting
 
     - name: Configurar Data Source do Prometheus no Grafana
       copy:
@@ -303,6 +305,69 @@
             ],
             "refresh": "5s", "schemaVersion": 37, "style": "dark", "tags": [], "templating": { "list": [] }, "time": { "from": "now-1h", "to": "now" }, "timepicker": {}, "timezone": "", "title": "Awaken SaaS - Torre de Controle", "uid": "awaken-main", "version": 1, "weekStart": ""
           }
+
+    - name: Criar Configuração de Alertas do Grafana
+      copy:
+        dest: /tmp/grafana/provisioning/alerting/alerting.yaml
+        content: |
+          apiVersion: 1
+          groups:
+            - orgId: 1
+              name: 'Awaken SaaS Rules'
+              folder: 'Alerts'
+              interval: 1m
+              rules:
+                - uid: 'high-payment-retries'
+                  title: 'Taxa Elevada de Retries de Pagamento'
+                  condition: 'B'
+                  data:
+                    - refId: 'A'
+                      relativeTimeRange:
+                        from: 300
+                        to: 0
+                      datasourceUid: 'Prometheus'
+                      model:
+                        expr: 'sum(rate(awaken_payment_retries_total[5m])) by (tenant_id)'
+                        intervalMs: 1000
+                        maxDataPoints: 43200
+                        refId: 'A'
+                    - refId: 'B'
+                      datasourceUid: '-100'
+                      model:
+                        conditions:
+                          - evaluator:
+                              params:
+                                - 0.5
+                              type: 'gt'
+                            operator:
+                              type: 'and'
+                            query:
+                              params:
+                                - 'A'
+                            reducer:
+                              params: []
+                              type: 'last'
+                            type: 'query'
+                        refId: 'B'
+                        type: 'classic_conditions'
+                  noDataState: 'NoData'
+                  execErrState: 'Alerting'
+                  for: '1m'
+          contactPoints:
+            - orgId: 1
+              name: 'Discord Alerts'
+              receivers:
+                - uid: 'discord-alerts-receiver'
+                  type: 'discord'
+                  settings:
+                    url: "{{ discord_webhook_url | default('YOUR_DISCORD_WEBHOOK_URL_HERE') }}"
+          policies:
+            - orgId: 1
+              receiver: 'Discord Alerts'
+              group_by: ['alertname']
+              group_wait: 10s
+              group_interval: 5m
+              repeat_interval: 1h
 
     - name: Rodar container do Grafana
       docker_container:
