@@ -86,4 +86,10 @@ jobs:
             -e "mysql_password=${{ steps.infra_outputs.outputs.MYSQL_PASSWORD }}" \
             -e "redis_url=${{ secrets.UPSTASH_REDIS_URL }}" \
             -e "rabbitmq_url=${{ secrets.RABBITMQ_URL }}" \
+            -e "discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -e "mp_app_id=${{ secrets.MP_APP_ID }}" \
+            -e "mp_client_secret=${{ secrets.MP_CLIENT_SECRET }}" \
+            -e "mp_redirect_uri=${{ secrets.MP_REDIRECT_URI }}" \
+            -e "jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -e "encryption_key=${{ secrets.ENCRYPTION_KEY }}" \
             -e "ansible_ssh_private_key_file=/home/runner/.ssh/id_ed25519"

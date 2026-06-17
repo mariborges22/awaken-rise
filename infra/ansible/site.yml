@@ -6,7 +6,7 @@
     project_root: "/opt/wepink"
     app_image: "maribma19/awakenrise_backend:latest"
     domain_name: "awakenrise.com.br"
-    discord_webhook_url: "https://discord.com/api/webhooks/1516526955212701798/GvUOKRPfDWVwmmOm6DCICLp-wqmu7b7uz6Pk-EuXCi1EYprrDeh0EHqgCIPJOX-bggze"
+    discord_webhook_url: "{{ discord_webhook_url | default('') }}"
 
   tasks:
     - name: Atualizar cache do apt
@@ -155,7 +155,13 @@
           # Limpeza automática: remove prefixos como 'REDIS_URL=' ou 'export ' caso existam no segredo
           REDIS_URL: "{{ redis_url | regex_replace('^(REDIS_URL=|export REDIS_URL=)', '') }}"
           RABBITMQ_URL: "amqp://wepink_user:wepink_pass@rabbitmq:5672/"
-          # Adicione outras variáveis de ambiente necessárias aqui
+          # Credenciais do Mercado Pago OAuth (injetadas via GitHub Secrets)
+          MP_APP_ID: "{{ mp_app_id | default('') }}"
+          MP_CLIENT_SECRET: "{{ mp_client_secret | default('') }}"
+          MP_REDIRECT_URI: "{{ mp_redirect_uri | default('') }}"
+          # Segredos de aplicação
+          JWT_SECRET: "{{ jwt_secret | default('') }}"
+          ENCRYPTION_KEY: "{{ encryption_key | default('') }}"
         networks:
           - name: awakenrise-network
 
