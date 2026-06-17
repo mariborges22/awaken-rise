@@ -11,6 +11,9 @@ import (
 )
 
 func RunMigrations(db *sql.DB, migrationsPath string) error {
+	// Destrava automaticamente o banco se alguma migração anterior tiver ficado em estado 'dirty' (incompleta)
+	_, _ = db.Exec("UPDATE schema_migrations SET dirty = 0")
+
 	driver, err := mysql.WithInstance(db, &mysql.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create database driver: %w", err)
