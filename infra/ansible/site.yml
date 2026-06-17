@@ -147,6 +147,8 @@
         image: "{{ app_image }}"
         state: started
         restart_policy: always
+        pull: yes
+        recreate: yes
         published_ports:
           - "8080:8080"
         env:
@@ -231,6 +233,8 @@
         image: "maribma19/awakenrise_frontend:latest"
         state: started
         restart_policy: always
+        pull: yes
+        recreate: yes
         published_ports:
           - "8081:8080" # Porta correta do nginx-unprivileged
         networks:
