@@ -1,13 +1,19 @@
 name: Infra & Deploy (DigitalOcean)
 
 on:
-  push:
-    branches: [  master, staging ]
+  workflow_run:
+    workflows: ["Backend CI", "Frontend CI"]
+    types:
+      - completed
+    branches:
+      - master
+      - staging
 
 jobs:
   terraform:
     name: "Terraform & Ansible"
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       id-token: write
       contents: read
